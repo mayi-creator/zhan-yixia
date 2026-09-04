@@ -1,929 +1,443 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>粘一下 · 运营选品版 UI 优化</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>粘一下 · 运营数据工作台 v8</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
-  :root{
-    --bg:#f5f7fb;
-    --bg2:#eef3ff;
-    --card:#ffffffcc;
-    --card-solid:#ffffff;
-    --text:#101828;
-    --text2:#344054;
-    --muted:#667085;
-    --line:#e4e7ec;
-    --accent:#7c3aed;
-    --accent2:#2563eb;
-    --accent-soft:#f3e8ff;
-    --blue-soft:#eaf2ff;
-    --success:#16a34a;
-    --shadow:0 20px 50px rgba(16,24,40,.08);
-    --shadow2:0 10px 24px rgba(16,24,40,.06);
-    --radius:22px;
-  }
-  *{box-sizing:border-box}
-  html,body{margin:0;padding:0}
-  body{
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
-    color:var(--text);
-    background:
-      radial-gradient(circle at 0% 0%, rgba(124,58,237,.08), transparent 22%),
-      radial-gradient(circle at 100% 10%, rgba(37,99,235,.08), transparent 20%),
-      linear-gradient(180deg,#f8fbff 0%, var(--bg) 100%);
-  }
-  button,input,textarea,select{font:inherit}
-  button{cursor:pointer}
-  .wrap{max-width:1400px;margin:0 auto;padding:28px 20px 56px}
-  .topbar{
-    display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px;
-  }
-  .brand{display:flex;align-items:center;gap:14px}
-  .logo{
-    width:48px;height:48px;border-radius:16px;
-    background:linear-gradient(135deg,var(--accent),var(--accent2));
-    color:#fff;display:grid;place-items:center;font-size:20px;font-weight:800;
-    box-shadow:0 12px 30px rgba(124,58,237,.25);
-  }
-  .brand h1{font-size:22px;margin:0}
-  .brand p{font-size:13px;color:var(--muted);margin:4px 0 0}
-  .tag{
-    white-space:nowrap;
-    background:#fff;border:1px solid var(--line);color:var(--muted);
-    padding:10px 14px;border-radius:999px;font-size:12px;
-    box-shadow:var(--shadow2);
-  }
-
-  .hero{
-    background:linear-gradient(135deg, rgba(255,255,255,.9), rgba(255,255,255,.75));
-    border:1px solid rgba(255,255,255,.8);
-    backdrop-filter: blur(12px);
-    border-radius:30px;
-    box-shadow:var(--shadow);
-    padding:30px;
-    margin-bottom:18px;
-    display:grid;
-    grid-template-columns:1.15fr .85fr;
-    gap:18px;
-  }
-  .hero-main h2{font-size:40px;line-height:1.12;letter-spacing:-.04em;margin:0 0 10px}
-  .hero-main p{font-size:14px;line-height:1.8;color:var(--text2);margin:0 0 20px;max-width:760px}
-  .hero-pills{display:flex;gap:10px;flex-wrap:wrap}
-  .pill{
-    padding:10px 14px;border-radius:999px;font-size:13px;
-    background:#fff;border:1px solid var(--line);color:var(--text2);
-  }
-  .hero-side{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:12px;
-    align-content:start;
-  }
-  .mini{
-    background:#fff;
-    border:1px solid var(--line);
-    border-radius:18px;
-    padding:16px;
-    box-shadow:var(--shadow2);
-  }
-  .mini .label{font-size:12px;color:var(--muted);margin-bottom:8px}
-  .mini .value{font-size:20px;font-weight:800}
-  .mini .desc{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.55}
-  .mini.full{grid-column:1/-1;background:linear-gradient(135deg,var(--accent-soft),#fff)}
-
-  .tabs{
-    display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;
-  }
-  .tab{
-    border:1px solid var(--line);background:#fff;color:var(--text2);
-    padding:10px 16px;border-radius:999px;font-size:13px;font-weight:600;
-    box-shadow:var(--shadow2);
-  }
-  .tab.active{
-    background:linear-gradient(135deg,var(--accent),var(--accent2));
-    border-color:transparent;color:#fff;
-  }
-
-  .workspace{
-    display:grid;
-    grid-template-columns:1.02fr 360px 1.02fr;
-    gap:16px;
-    align-items:start;
-  }
-  .panel,.center{
-    background:rgba(255,255,255,.82);
-    backdrop-filter: blur(10px);
-    border:1px solid rgba(255,255,255,.8);
-    border-radius:28px;
-    box-shadow:var(--shadow);
-  }
-  .panel{overflow:hidden;min-height:690px;display:flex;flex-direction:column}
-  .panel-head{
-    padding:18px 20px;
-    display:flex;justify-content:space-between;align-items:center;
-    border-bottom:1px solid #edf0f3;
-  }
-  .panel-title{font-size:15px;font-weight:800}
-  .counter{font-size:12px;color:var(--muted)}
-  .subcounter{font-size:12px;color:var(--muted)}
-  textarea{
-    width:100%;flex:1;resize:none;border:0;outline:none;background:transparent;
-    padding:20px;
-    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
-    font-size:14px;line-height:1.72;color:var(--text);
-  }
-  textarea::placeholder{color:#98a2b3}
-  .panel-foot{
-    border-top:1px solid #edf0f3;
-    padding:14px 16px;
-    display:flex;justify-content:space-between;align-items:center;gap:10px;
-  }
-  .left-actions,.right-actions{display:flex;gap:10px;flex-wrap:wrap}
-  .btn{
-    border:1px solid var(--line);
-    background:#fff;color:var(--text);
-    padding:10px 14px;border-radius:14px;font-size:13px;font-weight:600;
-    box-shadow:var(--shadow2);
-  }
-  .btn:hover{transform:translateY(-1px)}
-  .btn.primary{
-    background:linear-gradient(135deg,var(--accent),var(--accent2));
-    color:#fff;border-color:transparent;
-  }
-  .btn.soft{background:#f9fafb}
-  .success{
-    font-size:12px;color:var(--success);opacity:0;transition:.2s
-  }
-  .success.show{opacity:1}
-
-  .center{padding:14px;position:sticky;top:18px}
-  .tool-header{
-    margin-bottom:14px;
-  }
-  .tool-title{font-size:16px;font-weight:800}
-  .tool-sub{font-size:12px;color:var(--muted);line-height:1.6;margin-top:4px}
-  .section-label{
-    font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;
-    margin:14px 6px 8px;
-  }
-  .tool-grid{
-    display:grid;grid-template-columns:1fr 1fr;gap:10px;
-  }
-  .tool{
-    border:1px solid var(--line);
-    background:#fff;
-    border-radius:18px;
-    padding:14px;
-    min-height:86px;
-    text-align:left;
-    box-shadow:var(--shadow2);
-    display:flex;flex-direction:column;justify-content:space-between;
-  }
-  .tool:hover{border-color:#d5d8df;background:#fcfcfd}
-  .tool .icon{font-size:18px}
-  .tool b{font-size:13px;line-height:1.4}
-  .tool small{font-size:11px;color:var(--muted);line-height:1.5}
-
-  .extra-box{
-    margin-top:14px;padding:14px;background:#fff;border:1px solid var(--line);
-    border-radius:20px;box-shadow:var(--shadow2)
-  }
-  .extra-box h3{font-size:14px;margin:0 0 12px}
-  .extra-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .field{display:flex;flex-direction:column;gap:6px}
-  .field label{font-size:11px;color:var(--muted)}
-  input,select{
-    width:100%;border:1px solid var(--line);outline:none;background:#fff;
-    padding:10px 12px;border-radius:12px;color:var(--text);
-  }
-  input:focus,select:focus{border-color:#c7b6ff;box-shadow:0 0 0 4px rgba(124,58,237,.08)}
-  .hidden{display:none !important}
-
-  .info-cards{
-    margin-top:18px;
-    display:grid;grid-template-columns:repeat(4,1fr);gap:12px;
-  }
-  .info{
-    background:#fff;border:1px solid var(--line);border-radius:20px;padding:16px;box-shadow:var(--shadow2)
-  }
-  .info b{display:block;font-size:13px;margin-bottom:8px}
-  .info p{margin:0;font-size:12px;color:var(--muted);line-height:1.65}
-
-  @media (max-width:1100px){
-    .hero{grid-template-columns:1fr}
-    .workspace{grid-template-columns:1fr}
-    .center{position:static}
-    .panel{min-height:460px}
-    .info-cards{grid-template-columns:1fr 1fr}
-  }
-  @media (max-width:680px){
-    .compact-hero{padding:18px 20px}
-    .compact-hero .hero-main h2{font-size:26px}
-    .wrap{padding:16px 12px 36px}
-    .topbar{align-items:flex-start}
-    .hero{padding:20px}
-    .hero-main h2{font-size:30px}
-    .hero-side{grid-template-columns:1fr}
-    .tool-grid{grid-template-columns:1fr 1fr}
-    .extra-grid{grid-template-columns:1fr}
-    .info-cards{grid-template-columns:1fr}
-    .tag{display:none}
-  }
-
-  .compact-hero{
-    display:block;
-    padding:24px 28px;
-  }
-  .compact-hero .hero-main h2{
-    font-size:30px;
-    margin:0 0 8px;
-  }
-  .compact-hero .hero-main p{
-    margin:0;
-    max-width:none;
-  }
-  .privacy-note{
-    font-size:11px;
-    color:var(--muted);
-    margin-left:auto;
-    align-self:center;
-  }
-  .tool.wide{
-    grid-column:1/-1;
-    min-height:72px;
-  }
-  .inline-config{
-    margin-top:10px;
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:8px;
-  }
-  @media(max-width:680px){
-    .inline-config{grid-template-columns:1fr}
-  }
-
-
-  .dialog-backdrop{
-    position:fixed;
-    inset:0;
-    background:rgba(15,23,42,.28);
-    backdrop-filter:blur(8px);
-    display:none;
-    align-items:center;
-    justify-content:center;
-    padding:20px;
-    z-index:100;
-  }
-  .dialog-backdrop.show{display:flex}
-  .dialog-card{
-    width:min(480px,100%);
-    background:#fff;
-    border:1px solid var(--line);
-    border-radius:24px;
-    box-shadow:0 28px 80px rgba(16,24,40,.22);
-    overflow:hidden;
-  }
-  .dialog-head{
-    display:flex;
-    justify-content:space-between;
-    gap:18px;
-    padding:22px 22px 16px;
-  }
-  .dialog-head h3{margin:0;font-size:18px}
-  .dialog-head p{margin:6px 0 0;font-size:12px;color:var(--muted);line-height:1.6}
-  .dialog-close{
-    width:34px;height:34px;border:0;border-radius:10px;
-    background:var(--soft);font-size:22px;color:var(--muted);
-  }
-  .dialog-body{padding:0 22px 18px;display:grid;gap:14px}
-  .dialog-preview{
-    border:1px solid var(--line);
-    background:#f8fafc;
-    border-radius:14px;
-    padding:12px 14px;
-  }
-  .dialog-preview span{display:block;font-size:11px;color:var(--muted);margin-bottom:6px}
-  .dialog-preview code{font-size:12px;color:var(--text2);word-break:break-all}
-  .dialog-actions{
-    border-top:1px solid var(--line);
-    padding:14px 22px;
-    display:flex;
-    justify-content:flex-end;
-    gap:10px;
-  }
-  .panel.flash{
-    animation:panelFlash .9s ease;
-  }
-  @keyframes panelFlash{
-    0%{box-shadow:0 0 0 0 rgba(124,58,237,0), var(--shadow)}
-    35%{box-shadow:0 0 0 5px rgba(124,58,237,.14), var(--shadow)}
-    100%{box-shadow:0 0 0 0 rgba(124,58,237,0), var(--shadow)}
-  }
-
+:root{
+  --bg:#f6f7fb;--card:#fff;--text:#101828;--text2:#344054;--muted:#667085;--line:#e6e8ee;
+  --p:#635bff;--p2:#3874ff;--soft:#f6f7fa;--green:#12a150;--red:#d92d20;--amber:#d97706;
+  --shadow:0 16px 46px rgba(16,24,40,.07);--shadow2:0 7px 20px rgba(16,24,40,.05);
+}
+*{box-sizing:border-box} html,body{margin:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  color:var(--text);background:
+  radial-gradient(circle at 0 0,rgba(99,91,255,.07),transparent 23%),
+  radial-gradient(circle at 100% 0,rgba(56,116,255,.05),transparent 21%),
+  var(--bg);
+}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+.app{max-width:1480px;margin:auto;padding:22px 20px 54px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:45px;height:45px;border-radius:15px;display:grid;place-items:center;color:#fff;font-weight:900;
+background:linear-gradient(135deg,var(--p),var(--p2));box-shadow:0 10px 28px rgba(99,91,255,.22)}
+.brand h1{margin:0;font-size:21px}.brand p{margin:3px 0 0;font-size:12px;color:var(--muted)}
+.toplinks{display:flex;gap:10px;align-items:center}.linkbtn{border:0;background:transparent;color:var(--muted);font-size:12px}
+.hero{background:rgba(255,255,255,.88);border:1px solid rgba(255,255,255,.95);border-radius:27px;padding:25px 27px;box-shadow:var(--shadow);margin-bottom:15px}
+.hero h2{margin:0;font-size:32px;letter-spacing:-.035em}.hero p{margin:8px 0 0;color:var(--text2);font-size:13px;line-height:1.7}
+.quick{display:flex;gap:8px;flex-wrap:wrap;margin-top:17px}
+.qchip{border:1px solid var(--line);background:#fff;padding:8px 12px;border-radius:999px;font-size:12px;color:var(--text2);box-shadow:var(--shadow2)}
+.main{display:grid;grid-template-columns:260px 1fr;gap:15px}
+.nav{background:#fff;border:1px solid var(--line);border-radius:23px;padding:12px;box-shadow:var(--shadow);align-self:start;position:sticky;top:14px}
+.navlabel{font-size:10px;letter-spacing:.1em;color:#98a2b3;margin:8px 9px}
+.navitem{width:100%;border:0;background:transparent;border-radius:14px;padding:11px 12px;text-align:left;display:flex;gap:11px;align-items:center;color:var(--text2);margin-bottom:3px}
+.navitem:hover{background:#f8f9fc}.navitem.active{background:#f1f0ff;color:var(--p);font-weight:750}
+.navico{width:28px;height:28px;border-radius:9px;background:#f5f6f8;display:grid;place-items:center;font-size:14px}.navitem.active .navico{background:#e7e4ff}
+.content{min-width:0}.page{display:none}.page.active{display:block}
+.section-title{margin:3px 0 12px;display:flex;justify-content:space-between;align-items:end;gap:10px}
+.section-title h3{margin:0;font-size:18px}.section-title p{margin:4px 0 0;font-size:11px;color:var(--muted)}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px}
+.taskcard{background:#fff;border:1px solid var(--line);border-radius:20px;padding:16px;box-shadow:var(--shadow2);cursor:pointer;transition:.15s}
+.taskcard:hover{transform:translateY(-1px);border-color:#d7d9e2}.taskcard.active{border-color:#a69fff;box-shadow:0 0 0 3px rgba(99,91,255,.07)}
+.taskico{font-size:22px}.taskcard b{display:block;font-size:13px;margin:10px 0 4px}.taskcard p{margin:0;font-size:11px;color:var(--muted);line-height:1.55}
+.workspace{background:#fff;border:1px solid var(--line);border-radius:23px;box-shadow:var(--shadow);overflow:hidden}
+.whead{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px}
+.whead b{font-size:14px}.whead span{font-size:11px;color:var(--muted)}
+.body{padding:16px}.drop{
+  border:1.5px dashed #ccd2dc;border-radius:18px;background:#fafbfc;min-height:130px;
+  display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:17px
+}
+.drop.drag{border-color:var(--p);background:#f6f4ff}.drop .big{font-size:27px}.drop b{font-size:13px;margin-top:7px}.drop p{font-size:10px;color:var(--muted);margin:4px 0 10px}
+.btn{border:1px solid var(--line);background:#fff;border-radius:11px;padding:8px 12px;font-size:12px;font-weight:650}
+.btn.primary{background:linear-gradient(135deg,var(--p),var(--p2));color:#fff;border-color:transparent}.btn.soft{background:var(--soft)}
+.btn.danger{color:var(--red)}.btn:disabled{opacity:.45;cursor:not-allowed}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.field{display:flex;flex-direction:column;gap:5px}.field label{font-size:10px;color:var(--muted)}
+select,input{width:100%;border:1px solid var(--line);border-radius:11px;padding:9px 10px;outline:0;background:#fff;color:var(--text)}
+select:focus,input:focus{border-color:#b0aaff;box-shadow:0 0 0 3px rgba(99,91,255,.08)}
+.filebar{display:none;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:14px;margin-top:10px;background:#fff}.filebar.show{display:flex}.filebar .fi{flex:1}.filebar b{font-size:11px;display:block}.filebar span{font-size:10px;color:var(--muted)}
+.config{margin-top:13px;display:none}.config.show{display:block}
+.runbar{display:flex;justify-content:flex-end;gap:8px;margin-top:13px}
+.result{margin-top:14px;border:1px solid var(--line);border-radius:17px;overflow:hidden}
+.rhead{padding:11px 13px;background:#fafbfc;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+.rhead b{font-size:11px}.stats{display:flex;gap:6px;flex-wrap:wrap}.stat{font-size:10px;color:var(--muted);border:1px solid var(--line);background:#fff;border-radius:999px;padding:5px 8px}
+.tablewrap{overflow:auto;max-height:430px}table{border-collapse:collapse;width:max-content;min-width:100%;font-size:11px}
+th{position:sticky;top:0;background:#f6f7fa;text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid #f0f1f4;white-space:nowrap;max-width:300px;overflow:hidden;text-overflow:ellipsis}
+.resultfoot{padding:10px 12px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;align-items:center}.hint{font-size:10px;color:var(--muted)}.actions{display:flex;gap:7px}
+.empty{padding:55px;text-align:center;color:var(--muted);font-size:11px}
+.profile{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:13px}.pcard{border:1px solid var(--line);border-radius:15px;padding:13px;background:#fff}.pcard span{font-size:10px;color:var(--muted)}.pcard b{display:block;font-size:20px;margin-top:5px}
+.issues{display:grid;gap:8px}.issue{display:flex;justify-content:space-between;gap:10px;border:1px solid var(--line);border-radius:14px;padding:11px 12px}.issue b{font-size:11px}.issue span{font-size:10px;color:var(--muted)}.badge{border-radius:999px;padding:5px 8px;font-size:10px}.bad{background:#fff1f0;color:var(--red)}.warn{background:#fff8eb;color:var(--amber)}.good{background:#eefbf3;color:var(--green)}
+.textarea{width:100%;min-height:260px;resize:vertical;border:1px solid var(--line);border-radius:14px;padding:13px;outline:0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.6}
+@media(max-width:1100px){.main{grid-template-columns:1fr}.nav{position:static;display:flex;overflow:auto}.navlabel{display:none}.navitem{width:auto;white-space:nowrap}.cards{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){.app{padding:12px 9px 35px}.hero{padding:20px}.hero h2{font-size:27px}.cards,.grid2,.grid3,.profile{grid-template-columns:1fr}.nav{gap:3px}}
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="app">
   <div class="topbar">
-    <div class="brand">
-      <div class="logo">粘</div>
-      <div>
-        <h1>粘一下</h1>
-        <p>运营 / 选品 / 数据临时处理，先在这里搞定。</p>
-      </div>
-    </div>
-    
+    <div class="brand"><div class="logo">粘</div><div><h1>粘一下</h1><p>运营 / 选品数据工作台</p></div></div>
+    <div class="toplinks"><button class="linkbtn" data-go="quick">快捷文本工具</button></div>
   </div>
 
-  
-  <section class="hero compact-hero">
-    <div class="hero-main">
-      <h2>粘进来，处理完，复制走。</h2>
-      <p>标题、链接、ID、SKU 描述和名单，都可以在这里快速清洗、提取和转换。</p>
+  <section class="hero">
+    <h2>把表格里的麻烦事，变成几个按钮。</h2>
+    <p>清洗、匹配、统计、商品规格、1688 链接和数据检查，都放在一个工作台里。</p>
+    <div class="quick">
+      <button class="qchip" data-go="clean">去重 / 筛选</button>
+      <button class="qchip" data-go="match">两文件补字段</button>
+      <button class="qchip" data-go="agg">分组统计</button>
+      <button class="qchip" data-go="product">SKU 规格解析</button>
+      <button class="qchip" data-go="quality">数据体检</button>
     </div>
   </section>
 
-  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
-  <div class="tabs" style="margin-bottom:0;flex:1;">
-    <button class="tab active" data-tab="basic">文本整理</button>
-    <button class="tab" data-tab="ops">运营</button>
-    <button class="tab" data-tab="selection">选品</button>
-    <button class="tab" data-tab="sql">SQL</button>
-    <button class="tab" data-tab="extract">提取</button>
-  </div>
-  <div class="privacy-note">数据仅在当前浏览器中处理</div>
-</div>
-
-  <section class="workspace">
-    <section class="panel">
-      <div class="panel-head">
-        <div>
-          <div class="panel-title">原始内容</div>
-          <div class="subcounter">粘贴待处理内容；处理结果可再次放回这里继续加工</div>
-        </div>
-        <div class="counter" id="inputCounter">0 行 · 0 字符</div>
-      </div>
-      <textarea id="inputText" placeholder="例如：
-
-2026跨境爆款亚马逊女包草编包沙滩度假风编织手提包
-厂家直销新款拉菲草编织托特包 35x28cm
-SKU：米色-大号 60*90cm
-https://detail.1688.com/offer/123456789012.html
-黑色 XL 0.8×1.2m"></textarea>
-      <div class="panel-foot">
-        <div class="left-actions">
-          <button class="btn soft" id="sampleBtn">放个示例</button>
-          <button class="btn" id="clearBtn">清空</button>
-        </div>
-        <div class="right-actions"></div>
-      </div>
-    </section>
-
-    <aside class="center">
-      <div class="tool-header">
-        <div class="tool-title" id="toolTitle">文本整理</div>
-        <div class="tool-sub" id="toolSub">处理名单、ID 和一列数据的常见动作。</div>
-      </div>
-
-      <div id="basicTools">
-        <div class="section-label">基础整理</div>
-        <div class="tool-grid">
-          <button class="tool" onclick="run('dedupe')"><span class="icon">≠</span><b>去重</b><small>按行去重并保留唯一项</small></button>
-          <button class="tool" onclick="run('blank')"><span class="icon">⌫</span><b>去空行</b><small>删除空白行</small></button>
-          <button class="tool" onclick="run('trim')"><span class="icon">↔</span><b>去首尾空格</b><small>清理每行前后空格</small></button>
-          <button class="tool" onclick="run('sort')"><span class="icon">↕</span><b>按行排序</b><small>适合整理名单</small></button>
-          <button class="tool" onclick="run('quotes')"><span class="icon">“”</span><b>每行加引号</b><small>常用于 SQL</small></button>
-          <button class="tool" onclick="run('comma')"><span class="icon">,</span><b>逗号连接</b><small>把多行变一行</small></button>
-          <button class="tool" onclick="openDialog('prefixDialog')"><span class="icon">±</span><b>批量前后缀</b><small>为每一行统一加内容</small></button>
-          <button class="tool" onclick="openDialog('replaceDialog')"><span class="icon">↺</span><b>批量替换</b><small>查找内容并统一替换</small></button>
-        </div>
-      </div>
-
-      <div id="opsTools" class="hidden">
-        <div class="section-label">运营常用</div>
-        <div class="tool-grid">
-          <button class="tool" onclick="run('removePromo')"><span class="icon">✦</span><b>清洗商品标题</b><small>去爆款、跨境等噪音词</small></button>
-          <button class="tool" onclick="run('keywordFreq')"><span class="icon">TOP</span><b>关键词词频</b><small>看标题常见元素</small></button>
-          <button class="tool" onclick="run('lineLength')"><span class="icon">↔</span><b>标题长度检查</b><small>统计每行长度</small></button>
-          <button class="tool" onclick="run('duplicateTitles')"><span class="icon">2×</span><b>找重复标题</b><small>看重复出现了几次</small></button>
-          <button class="tool" onclick="run('wordCount')"><span class="icon">#</span><b>逐行字数统计</b><small>一行一个字数</small></button>
-          <button class="tool" onclick="run('dedupe')"><span class="icon">≠</span><b>标题去重</b><small>清理重复列表</small></button>
-        </div>
-      </div>
-
-      <div id="selectionTools" class="hidden">
-        <div class="section-label">选品常用</div>
-        <div class="tool-grid">
-          <button class="tool" onclick="run('aliId')"><span class="icon">1688</span><b>提取 1688 商品 ID</b><small>从链接和文本中抓取</small></button>
-          <button class="tool" onclick="run('dimensions')"><span class="icon">cm</span><b>提取 SKU 尺寸</b><small>识别常见尺寸格式</small></button>
-          <button class="tool" onclick="run('over60')"><span class="icon">⚠</span><b>筛任一边 &gt; 60cm</b><small>快速识别大件</small></button>
-          <button class="tool" onclick="run('colors')"><span class="icon">●</span><b>提取颜色词</b><small>常见中英颜色</small></button>
-          <button class="tool" onclick="run('sizes')"><span class="icon">XL</span><b>提取尺码词</b><small>常见服装尺码</small></button>
-          <button class="tool" onclick="run('searchWords')"><span class="icon">＋</span><b>生成 1688 搜索词</b><small>核心词 × 材质 × 风格 × 场景</small></button>
-        </div>
-      </div>
-
-      <div id="sqlTools" class="hidden">
-        <div class="section-label">SQL</div>
-        <div class="tool-grid">
-          <button class="tool" onclick="run('sqlIn')"><span class="icon">IN</span><b>转 IN (...)</b><small>只输出 IN 列表</small></button>
-          <button class="tool" onclick="run('sqlNotIn')"><span class="icon">NOT</span><b>转 NOT IN (...)</b><small>排除条件</small></button>
-          <button class="tool" onclick="run('whereIn')"><span class="icon">WHERE</span><b>生成 WHERE IN</b><small>带字段名</small></button>
-          <button class="tool" onclick="run('sqlValues')"><span class="icon">()</span><b>转 VALUES</b><small>一行一个值组</small></button>
-        </div>
-      </div>
-
-      <div id="extractTools" class="hidden">
-        <div class="section-label">提取工具</div>
-        <div class="tool-grid">
-          <button class="tool" onclick="run('numbers')"><span class="icon">123</span><b>提取数字</b><small>支持整数和小数</small></button>
-          <button class="tool" onclick="run('urls')"><span class="icon">↗</span><b>提取链接</b><small>识别 http / https</small></button>
-          <button class="tool" onclick="run('emails')"><span class="icon">@</span><b>提取邮箱</b><small>批量抓邮箱</small></button>
-          <button class="tool" onclick="run('domain')"><span class="icon">.com</span><b>提取域名</b><small>保留 http / https 前缀</small></button>
-          <button class="tool" onclick="run('cleanUrls')"><span class="icon">⌁</span><b>链接去参数</b><small>移除 ? 后的跟踪参数</small></button>
-          <button class="tool" onclick="run('aliShop')"><span class="icon">店</span><b>提取 1688 店铺主页</b><small>输出协议 + 店铺域名</small></button>
-          <button class="tool" onclick="run('json')"><span class="icon">{ }</span><b>转 JSON 数组</b><small>多行变数组</small></button>
-        </div>
-      </div>
-
-      <div class="extra-box hidden" id="searchExtra">
-        <h3>1688 搜索词组合器</h3>
-        <div class="extra-grid">
-          <div class="field">
-            <label>核心商品词（逗号分隔）</label>
-            <input id="coreWords" placeholder="草编包, 编织包">
-          </div>
-          <div class="field">
-            <label>材质词</label>
-            <input id="materialWords" placeholder="藤编, 纸绳, 拉菲草">
-          </div>
-          <div class="field">
-            <label>风格词</label>
-            <input id="styleWords" placeholder="法式, 度假风, 复古">
-          </div>
-          <div class="field">
-            <label>场景词</label>
-            <input id="sceneWords" placeholder="沙滩, 旅行, 夏季">
-          </div>
-        </div>
-      </div>
-
-      <div class="extra-box hidden" id="sqlExtra">
-        <h3>SQL 配置</h3>
-        <div class="extra-grid">
-          <div class="field">
-            <label>WHERE IN 字段名</label>
-            <input id="sqlField" value="product_id" placeholder="product_id">
-          </div>
-          <div class="field">
-            <label>VALUES 前缀（可选）</label>
-            <input id="sqlPrefix" placeholder="例如 INSERT INTO demo(id) VALUES">
-          </div>
-        </div>
-      </div>
+  <div class="main">
+    <aside class="nav">
+      <div class="navlabel">工作台</div>
+      <button class="navitem active" data-go="clean"><span class="navico">✦</span>数据整理</button>
+      <button class="navitem" data-go="match"><span class="navico">⇄</span>文件匹配</button>
+      <button class="navitem" data-go="agg"><span class="navico">Σ</span>聚合统计</button>
+      <button class="navitem" data-go="product"><span class="navico">SKU</span>商品数据</button>
+      <button class="navitem" data-go="ali"><span class="navico">1688</span>1688 工具</button>
+      <button class="navitem" data-go="quality"><span class="navico">✓</span>数据检查</button>
+      <div class="navlabel">其他</div>
+      <button class="navitem" data-go="quick"><span class="navico">{ }</span>快捷文本</button>
     </aside>
 
-    <section class="panel">
-      <div class="panel-head">
-        <div>
-          <div class="panel-title">处理结果</div>
-          <div class="subcounter">复制、下载，或用结果继续做下一步处理</div>
+    <main class="content">
+      <!-- 数据整理 -->
+      <section class="page active" id="page-clean">
+        <div class="section-title"><div><h3>数据整理</h3><p>不打开 Excel 公式，也能完成常见清洗。</p></div></div>
+        <div class="cards">
+          <div class="taskcard active" data-clean="dedupe"><div class="taskico">≠</div><b>按字段去重</b><p>选择一列作为唯一标识，只保留第一条。</p></div>
+          <div class="taskcard" data-clean="filter"><div class="taskico">⌕</div><b>条件筛选</b><p>包含、等于、为空、非空、数字大小。</p></div>
+          <div class="taskcard" data-clean="columns"><div class="taskico">▥</div><b>字段选择</b><p>只保留需要的列，快速瘦身文件。</p></div>
         </div>
-        <div class="counter" id="outputCounter">0 行 · 0 字符</div>
-      </div>
-      <textarea id="outputText" placeholder="处理结果会出现在这里…"></textarea>
-      <div class="panel-foot">
-        <div class="left-actions">
-          <span class="success" id="copySuccess">已复制</span>
-          <span class="success" id="continueSuccess">已放到左侧，可继续处理</span>
+        <div class="workspace">
+          <div class="whead"><div><b id="cleanTitle">按字段去重</b><br><span>上传 Excel / CSV 后选择字段。</span></div></div>
+          <div class="body">
+            <div class="drop" id="dropClean"><div class="big">📄</div><b>拖入 Excel / CSV</b><p>也可以点击按钮选择文件</p><button class="btn primary" onclick="pick('fileClean')">选择文件</button><input id="fileClean" type="file" accept=".xlsx,.xls,.csv" hidden></div>
+            <div class="filebar" id="barClean"><div class="fi"><b id="nameClean"></b><span id="metaClean"></span></div><button class="btn soft" onclick="pick('fileClean')">换文件</button></div>
+            <div class="config" id="cfgClean">
+              <div class="grid3">
+                <div class="field"><label>Sheet</label><select id="sheetClean"></select></div>
+                <div class="field"><label>处理字段</label><select id="colClean"></select></div>
+                <div class="field" id="filterWrap" style="display:none"><label>条件</label><select id="filterMode"><option value="contains">包含</option><option value="equals">等于</option><option value="notempty">非空</option><option value="empty">为空</option><option value="gt">数字大于</option><option value="lt">数字小于</option></select></div>
+              </div>
+              <div class="field" id="filterValWrap" style="display:none;margin-top:9px"><label>筛选值</label><input id="filterValue" placeholder="输入筛选值"></div>
+              <div class="field" id="keepColsWrap" style="display:none;margin-top:9px"><label>保留字段（按住 Ctrl/Cmd 可多选）</label><select id="keepCols" multiple style="min-height:130px"></select></div>
+              <div class="runbar"><button class="btn primary" id="runClean">开始处理</button></div>
+            </div>
+            <div id="resClean"></div>
+          </div>
         </div>
-        <div class="right-actions">
-          <button class="btn" id="clearOutputBtn">清空结果</button>
-          <button class="btn" id="downloadBtn">下载结果</button>
-          <button class="btn" id="continueBtn">← 用结果继续处理</button>
-          <button class="btn primary" id="copyBtn">复制结果</button>
-        </div>
-      </div>
-    </section>
-  </section>
-</div>
+      </section>
 
-<div class="dialog-backdrop" id="prefixDialog">
-  <div class="dialog-card">
-    <div class="dialog-head">
-      <div>
-        <h3>批量前后缀</h3>
-        <p>给左侧每一行统一加上前缀或后缀。</p>
-      </div>
-      <button class="dialog-close" onclick="closeDialog('prefixDialog')">×</button>
-    </div>
-    <div class="dialog-body">
-      <div class="field">
-        <label>前缀</label>
-        <input id="linePrefix" placeholder="例如 SKU-">
-      </div>
-      <div class="field">
-        <label>后缀</label>
-        <input id="lineSuffix" placeholder="例如 -US">
-      </div>
-      <div class="dialog-preview">
-        <span>预览</span>
-        <code id="prefixPreview">原内容 → 原内容</code>
-      </div>
-    </div>
-    <div class="dialog-actions">
-      <button class="btn" onclick="closeDialog('prefixDialog')">取消</button>
-      <button class="btn primary" id="applyPrefixBtn">应用到每一行</button>
-    </div>
-  </div>
-</div>
+      <!-- 文件匹配 -->
+      <section class="page" id="page-match">
+        <div class="section-title"><div><h3>文件匹配</h3><p>把 VLOOKUP / XLOOKUP 变成选择题。</p></div></div>
+        <div class="cards">
+          <div class="taskcard active"><div class="taskico">＋</div><b>给 A 文件补字段</b><p>按 Key 匹配 B 文件，并勾选要补回 A 的字段。</p></div>
+          <div class="taskcard"><div class="taskico">∩</div><b>交集 / 差集</b><p>快速找只在 A、只在 B、两边都有。</p></div>
+          <div class="taskcard"><div class="taskico">⚠</div><b>未匹配数据</b><p>单独找出匹配不到的 Key。</p></div>
+        </div>
+        <div class="workspace">
+          <div class="whead"><div><b>给 A 文件补 B 的字段</b><br><span>例如：A 里只有 SPU，B 里有 SPU + 供应商 + 类目。</span></div></div>
+          <div class="body">
+            <div class="grid2">
+              <div>
+                <div class="drop"><div class="big">A</div><b>主文件</b><p>最终结果以 A 文件为基础</p><button class="btn primary" onclick="pick('fileMatchA')">上传 A</button><input id="fileMatchA" type="file" accept=".xlsx,.xls,.csv" hidden></div>
+                <div class="filebar" id="barMatchA"><div class="fi"><b id="nameMatchA"></b><span id="metaMatchA"></span></div></div>
+              </div>
+              <div>
+                <div class="drop"><div class="big">B</div><b>补充文件</b><p>从 B 文件补字段到 A</p><button class="btn primary" onclick="pick('fileMatchB')">上传 B</button><input id="fileMatchB" type="file" accept=".xlsx,.xls,.csv" hidden></div>
+                <div class="filebar" id="barMatchB"><div class="fi"><b id="nameMatchB"></b><span id="metaMatchB"></span></div></div>
+              </div>
+            </div>
+            <div class="config" id="cfgMatch">
+              <div class="grid2">
+                <div class="field"><label>A 匹配字段</label><select id="keyA"></select></div>
+                <div class="field"><label>B 匹配字段</label><select id="keyB"></select></div>
+              </div>
+              <div class="field" style="margin-top:10px"><label>从 B 补回的字段（可多选）</label><select id="addCols" multiple style="min-height:135px"></select></div>
+              <div class="runbar"><button class="btn primary" id="runMatch">开始匹配</button></div>
+            </div>
+            <div id="resMatch"></div>
+          </div>
+        </div>
+      </section>
 
-<div class="dialog-backdrop" id="replaceDialog">
-  <div class="dialog-card">
-    <div class="dialog-head">
-      <div>
-        <h3>批量替换</h3>
-        <p>查找左侧文本中的指定内容，并全部替换。</p>
-      </div>
-      <button class="dialog-close" onclick="closeDialog('replaceDialog')">×</button>
-    </div>
-    <div class="dialog-body">
-      <div class="field">
-        <label>查找内容</label>
-        <input id="findText" placeholder="例如 2026">
-      </div>
-      <div class="field">
-        <label>替换为</label>
-        <input id="replaceWith" placeholder="例如 2027；留空则删除">
-      </div>
-      <div class="dialog-preview">
-        <span>说明</span>
-        <code>会替换全部匹配内容，不区分行</code>
-      </div>
-    </div>
-    <div class="dialog-actions">
-      <button class="btn" onclick="closeDialog('replaceDialog')">取消</button>
-      <button class="btn primary" id="applyReplaceBtn">全部替换</button>
-    </div>
+      <!-- 聚合 -->
+      <section class="page" id="page-agg">
+        <div class="section-title"><div><h3>聚合统计</h3><p>把简单 SQL / 数据透视表变成表单。</p></div></div>
+        <div class="cards">
+          <div class="taskcard active"><div class="taskico">#</div><b>分组计数</b><p>按供应商 / 类目 / 选品人统计行数。</p></div>
+          <div class="taskcard"><div class="taskico">≠</div><b>去重计数</b><p>例如按类目统计去重 SPU 数。</p></div>
+          <div class="taskcard"><div class="taskico">Σ</div><b>求和 / 平均值</b><p>例如按供应商汇总销售额。</p></div>
+        </div>
+        <div class="workspace">
+          <div class="whead"><div><b>分组统计</b><br><span>上传文件后选择分组字段和统计方式。</span></div></div>
+          <div class="body">
+            <div class="drop"><div class="big">Σ</div><b>上传 Excel / CSV</b><p>适合订单、商品、供应商明细</p><button class="btn primary" onclick="pick('fileAgg')">选择文件</button><input id="fileAgg" type="file" accept=".xlsx,.xls,.csv" hidden></div>
+            <div class="filebar" id="barAgg"><div class="fi"><b id="nameAgg"></b><span id="metaAgg"></span></div></div>
+            <div class="config" id="cfgAgg">
+              <div class="grid3">
+                <div class="field"><label>分组字段</label><select id="groupCol"></select></div>
+                <div class="field"><label>统计方式</label><select id="aggMode"><option value="count">行数</option><option value="distinct">去重计数</option><option value="sum">求和</option><option value="avg">平均值</option></select></div>
+                <div class="field"><label>统计字段</label><select id="metricCol"></select></div>
+              </div>
+              <div class="runbar"><button class="btn primary" id="runAgg">开始统计</button></div>
+            </div>
+            <div id="resAgg"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 商品 -->
+      <section class="page" id="page-product">
+        <div class="section-title"><div><h3>商品数据</h3><p>针对选品 / SKU 规格的专属处理。</p></div></div>
+        <div class="cards">
+          <div class="taskcard active"><div class="taskico">↔</div><b>SKU 规格解析</b><p>从描述中识别尺寸、重量、颜色、尺码。</p></div>
+          <div class="taskcard"><div class="taskico">⚠</div><b>大件筛查</b><p>任意一边超过阈值时直接筛出原始行。</p></div>
+          <div class="taskcard"><div class="taskico">0</div><b>异常规格</b><p>找尺寸为 0、重量缺失等异常记录。</p></div>
+        </div>
+        <div class="workspace">
+          <div class="whead"><div><b>SKU 规格解析</b><br><span>例：米色-XL-60×90cm-0.75kg</span></div></div>
+          <div class="body">
+            <div class="drop"><div class="big">SKU</div><b>上传商品数据文件</b><p>选择包含 SKU 描述 / 规格的字段</p><button class="btn primary" onclick="pick('fileProduct')">选择文件</button><input id="fileProduct" type="file" accept=".xlsx,.xls,.csv" hidden></div>
+            <div class="filebar" id="barProduct"><div class="fi"><b id="nameProduct"></b><span id="metaProduct"></span></div></div>
+            <div class="config" id="cfgProduct">
+              <div class="grid3">
+                <div class="field"><label>规格字段</label><select id="skuCol"></select></div>
+                <div class="field"><label>筛选方式</label><select id="skuMode"><option value="parse">仅解析</option><option value="large">任一边超过阈值</option><option value="invalid">规格异常</option></select></div>
+                <div class="field"><label>尺寸阈值（cm）</label><input id="sizeThreshold" type="number" value="60"></div>
+              </div>
+              <div class="runbar"><button class="btn primary" id="runProduct">开始处理</button></div>
+            </div>
+            <div id="resProduct"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 1688 -->
+      <section class="page" id="page-ali">
+        <div class="section-title"><div><h3>1688 工具</h3><p>把混乱链接整理成可继续使用的数据。</p></div></div>
+        <div class="cards">
+          <div class="taskcard active"><div class="taskico">ID</div><b>商品 ID</b><p>从详情链接中提取 offer ID。</p></div>
+          <div class="taskcard"><div class="taskico">店</div><b>店铺主页</b><p>保留 https/http + 店铺域名。</p></div>
+          <div class="taskcard"><div class="taskico">⌁</div><b>链接清洗</b><p>去掉 query 参数和跟踪参数。</p></div>
+        </div>
+        <div class="workspace">
+          <div class="whead"><div><b>1688 链接批量解析</b><br><span>输出商品 ID、链接类型、店铺主页和干净链接。</span></div></div>
+          <div class="body">
+            <div class="drop"><div class="big">1688</div><b>上传含链接的文件</b><p>也支持一列混合文本</p><button class="btn primary" onclick="pick('fileAli')">选择文件</button><input id="fileAli" type="file" accept=".xlsx,.xls,.csv" hidden></div>
+            <div class="filebar" id="barAli"><div class="fi"><b id="nameAli"></b><span id="metaAli"></span></div></div>
+            <div class="config" id="cfgAli"><div class="field"><label>链接字段</label><select id="aliCol"></select></div><div class="runbar"><button class="btn primary" id="runAli">开始解析</button></div></div>
+            <div id="resAli"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 数据检查 -->
+      <section class="page" id="page-quality">
+        <div class="section-title"><div><h3>数据检查</h3><p>先看这份文件到底脏在哪里。</p></div></div>
+        <div class="workspace">
+          <div class="whead"><div><b>一键数据体检</b><br><span>检查空值、重复行、重复主键和可疑 URL。</span></div></div>
+          <div class="body">
+            <div class="drop"><div class="big">✓</div><b>上传需要检查的文件</b><p>上传后自动生成基础体检报告</p><button class="btn primary" onclick="pick('fileQuality')">选择文件</button><input id="fileQuality" type="file" accept=".xlsx,.xls,.csv" hidden></div>
+            <div class="filebar" id="barQuality"><div class="fi"><b id="nameQuality"></b><span id="metaQuality"></span></div></div>
+            <div class="config" id="cfgQuality"><div class="field"><label>主键字段（用于检查重复 Key）</label><select id="qualityKey"></select></div><div class="runbar"><button class="btn primary" id="runQuality">开始体检</button></div></div>
+            <div id="qualityReport"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 快捷文本 -->
+      <section class="page" id="page-quick">
+        <div class="section-title"><div><h3>快捷文本工具</h3><p>临时的一列 ID / 链接 / 名单，不用上传文件。</p></div></div>
+        <div class="workspace">
+          <div class="body">
+            <div class="grid2">
+              <div><div class="field"><label>原始内容</label><textarea class="textarea" id="quickIn" placeholder="把内容粘在这里…"></textarea></div></div>
+              <div><div class="field"><label>处理结果</label><textarea class="textarea" id="quickOut" placeholder="结果会出现在这里…"></textarea></div></div>
+            </div>
+            <div class="runbar" style="justify-content:space-between">
+              <div class="actions">
+                <button class="btn" data-q="dedupe">去重</button><button class="btn" data-q="sql">SQL IN</button><button class="btn" data-q="json">JSON</button><button class="btn" data-q="domain">提取域名</button><button class="btn" data-q="aliid">1688 ID</button>
+              </div>
+              <div class="actions"><button class="btn" id="quickContinue">← 继续处理</button><button class="btn primary" id="quickCopy">复制结果</button></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
   </div>
 </div>
 
 <script>
-const input = document.getElementById('inputText');
-const output = document.getElementById('outputText');
-const $ = s => document.querySelector(s);
-const $$ = s => [...document.querySelectorAll(s)];
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const state={};
 
-const promoWords = ['跨境','爆款','厂家直销','源头厂家','工厂直销','一件代发','来图定制','新款','新品','热卖','热销','亚马逊','temu','tiktok','shein','速卖通','独立站','外贸','专供','同款','网红','ins风','现货','批发','支持定制','跨境专供'];
-const colorWords = ['黑色','白色','米色','杏色','灰色','银色','金色','红色','酒红','粉色','玫红','橙色','黄色','绿色','军绿','蓝色','藏青','紫色','棕色','咖色','卡其','透明','彩色','black','white','beige','gray','grey','red','pink','orange','yellow','green','blue','navy','purple','brown','khaki','gold','silver'];
-const sizeWords = ['XXXS','XXS','XS','S','M','L','XL','XXL','XXXL','XXXXL','2XL','3XL','4XL','5XL','6XL','均码','大码','小码','中码','加大码'];
+function go(name){
+  $$('.page').forEach(x=>x.classList.remove('active'));
+  $('#page-'+name).classList.add('active');
+  $$('.navitem').forEach(x=>x.classList.toggle('active',x.dataset.go===name));
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+$$('[data-go]').forEach(x=>x.onclick=()=>go(x.dataset.go));
 
-function lines(t){ return t.replace(/\r/g,'').split('\n'); }
-function cleanLines(t){ return lines(t).map(x => x.trim()).filter(Boolean); }
-function unique(arr){ return [...new Set(arr)]; }
-function escSql(s){ return String(s).replace(/'/g,"''"); }
-
-function counters(){
-  const a = input.value;
-  const b = output.value;
-  $('#inputCounter').textContent = `${a ? lines(a).length : 0} 行 · ${a.length} 字符`;
-  $('#outputCounter').textContent = `${b ? lines(b).length : 0} 行 · ${b.length} 字符`;
+function pick(id){$('#'+id).click()}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function readWB(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>{try{res(XLSX.read(new Uint8Array(e.target.result),{type:'array'}))}catch(err){rej(err)}};r.onerror=rej;r.readAsArrayBuffer(file)})}
+function firstRows(wb){const sh=wb.SheetNames[0];return XLSX.utils.sheet_to_json(wb.Sheets[sh],{defval:'',raw:false})}
+function fmtFile(file,rows){return `${(file.size/1024/1024).toFixed(2)} MB · ${rows.length.toLocaleString()} 行`}
+function fillSelect(sel,headers){sel.innerHTML=headers.map(h=>`<option value="${esc(h)}">${esc(h)}</option>`).join('')}
+function downloadXLSX(rows,name){
+  if(!rows.length)return;
+  const ws=XLSX.utils.json_to_sheet(rows), wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'处理结果');XLSX.writeFile(wb,name);
+}
+function resultBox(el,rows,label='处理结果'){
+  if(!rows.length){el.innerHTML='<div class="result"><div class="empty">没有符合条件的数据</div></div>';return}
+  const hs=Object.keys(rows[0]), show=rows.slice(0,150);
+  el.innerHTML=`<div class="result"><div class="rhead"><b>${label}</b><div class="stats"><span class="stat">${rows.length.toLocaleString()} 行</span><span class="stat">${hs.length} 列</span></div></div>
+  <div class="tablewrap"><table><thead><tr>${hs.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${show.map(r=>`<tr>${hs.map(h=>`<td title="${esc(r[h]??'')}">${esc(r[h]??'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+  <div class="resultfoot"><span class="hint">${rows.length>150?'页面预览前 150 行 · ':''}导出会包含全部结果</span><div class="actions"><button class="btn primary dlx">下载 Excel</button></div></div></div>`;
+  el.querySelector('.dlx').onclick=()=>downloadXLSX(rows,'粘一下_'+label+'.xlsx');
+}
+function setupDrop(dropId,fileId,loader){
+  const d=$('#'+dropId), f=$('#'+fileId);
+  f.onchange=e=>e.target.files[0]&&loader(e.target.files[0]);
+  ['dragenter','dragover'].forEach(ev=>d.addEventListener(ev,e=>{e.preventDefault();d.classList.add('drag')}));
+  ['dragleave','drop'].forEach(ev=>d.addEventListener(ev,e=>{e.preventDefault();d.classList.remove('drag')}));
+  d.addEventListener('drop',e=>e.dataTransfer.files[0]&&loader(e.dataTransfer.files[0]));
 }
 
-function tokensByChineseAndEnglish(text){
-  const arr = text.toLowerCase().match(/[\u4e00-\u9fa5]{2,8}|[a-z][a-z0-9\-]{2,}/g) || [];
-  const stop = new Set(['跨境','爆款','厂家','直销','商品','产品','新款','新品','批发','一件代发','支持','定制','适用','女款','男款','儿童','亚马逊','temu','tiktok']);
-  return arr.filter(x => !stop.has(x));
-}
-
-function parseDimensions(line){
-  const out = [];
-  const re = /(\d+(?:\.\d+)?)\s*(cm|厘米|mm|毫米|m|米)?\s*[xX×*✕]\s*(\d+(?:\.\d+)?)\s*(cm|厘米|mm|毫米|m|米)?(?:\s*[xX×*✕]\s*(\d+(?:\.\d+)?)\s*(cm|厘米|mm|毫米|m|米)?)?/g;
-  let m;
-  while((m = re.exec(line))){
-    const vals = [m[1], m[3], m[5]].filter(Boolean).map(Number);
-    const units = [m[2], m[4], m[6]].filter(Boolean);
-    const unit = (units[0] || 'cm').toLowerCase();
-    let factor = 1;
-    if(unit === 'm' || unit === '米') factor = 100;
-    if(unit === 'mm' || unit === '毫米') factor = 0.1;
-    out.push({ raw:m[0], cm:vals.map(v => v * factor) });
-  }
-  return out;
-}
-
-function splitWords(v){
-  return v.split(/[,，\n]/).map(x => x.trim()).filter(Boolean);
-}
-
-function run(type){
-  const raw = input.value;
-  const ls = cleanLines(raw);
-  let result = '';
-
-  if(type === 'dedupe') result = unique(ls).join('\n');
-  if(type === 'blank') result = lines(raw).filter(x => x.trim()).join('\n');
-  if(type === 'trim') result = lines(raw).map(x => x.trim()).join('\n');
-  if(type === 'sort') result = [...ls].sort((a,b)=>a.localeCompare(b,'zh-CN',{numeric:true})).join('\n');
-  if(type === 'quotes') result = ls.map(x => `'${escSql(x)}'`).join('\n');
-  if(type === 'comma') result = ls.join(',');
-
-  if(type === 'prefixSuffix'){
-    const prefix = $('#linePrefix').value || '';
-    const suffix = $('#lineSuffix').value || '';
-    result = ls.map(x => prefix + x + suffix).join('\n');
-  }
-  if(type === 'replaceText'){
-    const find = $('#findText').value;
-    const replaceWith = $('#replaceWith').value || '';
-    if(!find){
-      result = raw;
-    }else{
-      result = raw.split(find).join(replaceWith);
-    }
-  }
-
-  if(type === 'keywordFreq'){
-    const map = {};
-    ls.forEach(line => tokensByChineseAndEnglish(line).forEach(t => map[t] = (map[t] || 0) + 1));
-    result = Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,100).map(([k,v],i)=>`${String(i+1).padStart(2,'0')}\t${k}\t${v}`).join('\n');
-  }
-  if(type === 'removePromo'){
-    result = ls.map(line => {
-      let x = line;
-      promoWords.forEach(w => x = x.replace(new RegExp(w,'gi'),' '));
-      return x.replace(/[【】\[\]（）()]/g,' ').replace(/\s+/g,' ').trim();
-    }).join('\n');
-  }
-  if(type === 'lineLength') result = ls.map(x => `${x.length}\t${x}`).sort((a,b)=>parseInt(b)-parseInt(a)).join('\n');
-  if(type === 'duplicateTitles'){
-    const m = {};
-    ls.forEach(x => m[x] = (m[x] || 0) + 1);
-    result = Object.entries(m).filter(([,v])=>v>1).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${v}次\t${k}`).join('\n');
-  }
-  if(type === 'wordCount') result = ls.map(x => `${x.length}\t${x}`).join('\n');
-
-  if(type === 'aliId'){
-    const ids = [];
-    const regs = [
-      /offer\/(\d+)\.html/gi,
-      /(?:offerId|productId|itemId|id)[=\/](\d{6,})/gi,
-      /\b(\d{8,})\b/g
-    ];
-    ls.forEach(line => regs.forEach(r => { let m; while((m = r.exec(line))) ids.push(m[1]); }));
-    result = unique(ids).join('\n');
-  }
-  if(type === 'dimensions'){
-    const rows = [];
-    ls.forEach(line => {
-      const ds = parseDimensions(line);
-      if(ds.length) rows.push(`${ds.map(d=>d.raw).join(' | ')}\t${line}`);
-    });
-    result = rows.join('\n');
-  }
-  if(type === 'over60'){
-    const rows = [];
-    ls.forEach(line => {
-      const ds = parseDimensions(line);
-      const hits = ds.filter(d => d.cm.some(v => v > 60));
-      if(hits.length) rows.push(`${hits.map(d=>d.raw).join(' | ')}\t${line}`);
-    });
-    result = rows.join('\n');
-  }
-  if(type === 'colors'){
-    const found = [];
-    ls.forEach(line => colorWords.forEach(c => { if(line.toLowerCase().includes(c.toLowerCase())) found.push(c); }));
-    result = unique(found).join('\n');
-  }
-  if(type === 'sizes'){
-    const found = [];
-    ls.forEach(line => sizeWords.forEach(s => {
-      const re = new RegExp(`(^|[^A-Za-z0-9])${s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}([^A-Za-z0-9]|$)`,'i');
-      if(re.test(line) || line.includes(s)) found.push(s);
-    }));
-    result = unique(found).join('\n');
-  }
-  if(type === 'searchWords'){
-    const core = splitWords($('#coreWords').value);
-    const mat = splitWords($('#materialWords').value);
-    const sty = splitWords($('#styleWords').value);
-    const scene = splitWords($('#sceneWords').value);
-    const combos = [];
-    core.forEach(c => {
-      combos.push(c);
-      mat.forEach(m => combos.push(m + c));
-      sty.forEach(s => combos.push(s + c));
-      scene.forEach(sc => combos.push(sc + c));
-      mat.forEach(m => sty.forEach(s => combos.push(s + m + c)));
-      mat.forEach(m => scene.forEach(sc => combos.push(sc + m + c)));
-    });
-    result = unique(combos).join('\n');
-  }
-
-  if(type === 'sqlIn') result = `IN (\n  ${ls.map(x=>`'${escSql(x)}'`).join(',\n  ')}\n)`;
-  if(type === 'sqlNotIn') result = `NOT IN (\n  ${ls.map(x=>`'${escSql(x)}'`).join(',\n  ')}\n)`;
-  if(type === 'whereIn'){
-    const field = $('#sqlField').value.trim() || 'product_id';
-    result = `WHERE ${field} IN (\n  ${ls.map(x=>`'${escSql(x)}'`).join(',\n  ')}\n);`;
-  }
-  if(type === 'sqlValues'){
-    const prefix = $('#sqlPrefix').value.trim();
-    const vals = ls.map(x => `('${escSql(x)}')`).join(',\n');
-    result = (prefix ? prefix + '\n' : 'VALUES\n') + vals + ';';
-  }
-
-  if(type === 'numbers') result = [...raw.matchAll(/-?\d+(?:\.\d+)?/g)].map(m=>m[0]).join('\n');
-  if(type === 'urls') result = unique([...raw.matchAll(/https?:\/\/[^\s<>"']+/g)].map(m=>m[0].replace(/[),.;]+$/,''))).join('\n');
-  if(type === 'emails') result = unique([...raw.matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)].map(m=>m[0])).join('\n');
-  if(type === 'domain'){
-    const urls = [...raw.matchAll(/https?:\/\/[^\s<>"']+/g)].map(m=>m[0]);
-    result = unique(urls.map(u=>{ 
-      try { 
-        const url = new URL(u);
-        return url.protocol + '//' + url.hostname;
-      } catch(e){ 
-        return ''; 
-      } 
-    }).filter(Boolean)).join('\n');
-  }
-  if(type === 'cleanUrls'){
-    const urls = [...raw.matchAll(/https?:\/\/[^\s<>"']+/g)].map(m=>m[0].replace(/[),.;]+$/,''));
-    result = unique(urls.map(u=>{
-      try{
-        const url = new URL(u);
-        return url.protocol + '//' + url.host + url.pathname;
-      }catch(e){
-        return u.split('?')[0].split('#')[0];
-      }
-    })).join('\n');
-  }
-  if(type === 'aliShop'){
-    const urls = [...raw.matchAll(/https?:\/\/[^\s<>"']+/g)].map(m=>m[0].replace(/[),.;]+$/,''));
-    const shops = urls.map(u=>{
-      try{
-        const url = new URL(u);
-        if(url.hostname.endsWith('.1688.com')){
-          return url.protocol + '//' + url.hostname;
-        }
-        return '';
-      }catch(e){
-        return '';
-      }
-    }).filter(Boolean);
-    result = unique(shops).join('\n');
-  }
-  if(type === 'json') result = JSON.stringify(ls, null, 2);
-
-  output.value = result;
-  counters();
-}
-
-const tabMeta = {
-  basic: ['文本整理', '处理名单、ID 和一列数据的常见动作。'],
-  ops: ['运营', '更偏向商品标题、关键词和内容列表处理。'],
-  selection: ['选品', '更偏向 1688 链接、SKU 规格、尺寸和搜索词。'],
-  sql: ['SQL', '把一列内容快速转成 SQL 可用结构。'],
-  extract: ['提取', '从混合文本里抓数字、链接、邮箱、域名。']
+/* 数据整理 */
+let cleanMode='dedupe';
+$$('[data-clean]').forEach(c=>c.onclick=()=>{
+  $$('[data-clean]').forEach(x=>x.classList.remove('active'));c.classList.add('active');cleanMode=c.dataset.clean;
+  const map={dedupe:'按字段去重',filter:'条件筛选',columns:'字段选择'};$('#cleanTitle').textContent=map[cleanMode];
+  $('#filterWrap').style.display=cleanMode==='filter'?'flex':'none';$('#filterValWrap').style.display=cleanMode==='filter'?'flex':'none';$('#keepColsWrap').style.display=cleanMode==='columns'?'flex':'none';
+});
+setupDrop('dropClean','fileClean',async file=>{
+  const wb=await readWB(file);state.clean={file,wb,rows:firstRows(wb)};$('#barClean').classList.add('show');$('#nameClean').textContent=file.name;$('#metaClean').textContent=fmtFile(file,state.clean.rows);
+  $('#cfgClean').classList.add('show');$('#sheetClean').innerHTML=wb.SheetNames.map(s=>`<option>${esc(s)}</option>`).join('');
+  const h=state.clean.rows.length?Object.keys(state.clean.rows[0]):[];fillSelect($('#colClean'),h);$('#keepCols').innerHTML=h.map(x=>`<option selected>${esc(x)}</option>`).join('');
+});
+$('#sheetClean').onchange=()=>{const wb=state.clean.wb;state.clean.rows=XLSX.utils.sheet_to_json(wb.Sheets[$('#sheetClean').value],{defval:'',raw:false});const h=state.clean.rows.length?Object.keys(state.clean.rows[0]):[];fillSelect($('#colClean'),h);$('#keepCols').innerHTML=h.map(x=>`<option selected>${esc(x)}</option>`).join('')};
+$('#runClean').onclick=()=>{
+  const rows=state.clean?.rows||[], col=$('#colClean').value;let out=[];
+  if(cleanMode==='dedupe'){const seen=new Set();out=rows.filter(r=>{const k=String(r[col]??'');if(seen.has(k))return false;seen.add(k);return true})}
+  if(cleanMode==='filter'){const m=$('#filterMode').value,v=$('#filterValue').value;out=rows.filter(r=>{const x=String(r[col]??'');if(m==='contains')return x.includes(v);if(m==='equals')return x===v;if(m==='notempty')return x.trim()!=='';if(m==='empty')return x.trim()==='';if(m==='gt')return Number(x)>Number(v);if(m==='lt')return Number(x)<Number(v)})}
+  if(cleanMode==='columns'){const ks=[...$('#keepCols').selectedOptions].map(o=>o.value);out=rows.map(r=>Object.fromEntries(ks.map(k=>[k,r[k]])))}
+  resultBox($('#resClean'),out,'数据整理结果');
 };
 
-$$('.tab').forEach(btn => {
-  btn.addEventListener('click', () => {
-    $$('.tab').forEach(x => x.classList.remove('active'));
-    btn.classList.add('active');
-    ['basic','ops','selection','sql','extract'].forEach(k => $('#' + k + 'Tools').classList.add('hidden'));
-    $('#' + btn.dataset.tab + 'Tools').classList.remove('hidden');
-    $('#searchExtra').classList.toggle('hidden', btn.dataset.tab !== 'selection');
-    $('#sqlExtra').classList.toggle('hidden', btn.dataset.tab !== 'sql');
-    $('#toolTitle').textContent = tabMeta[btn.dataset.tab][0];
-    $('#toolSub').textContent = tabMeta[btn.dataset.tab][1];
+/* 文件匹配 */
+async function loadMatch(file,side){
+  const wb=await readWB(file), rows=firstRows(wb), h=rows.length?Object.keys(rows[0]):[];state['match'+side]={file,rows,h};
+  $('#barMatch'+side).classList.add('show');$('#nameMatch'+side).textContent=file.name;$('#metaMatch'+side).textContent=fmtFile(file,rows);
+  fillSelect($('#key'+side),h);
+  if(side==='B')$('#addCols').innerHTML=h.map(x=>`<option>${esc(x)}</option>`).join('');
+  if(state.matchA&&state.matchB)$('#cfgMatch').classList.add('show');
+}
+$('#fileMatchA').onchange=e=>e.target.files[0]&&loadMatch(e.target.files[0],'A');
+$('#fileMatchB').onchange=e=>e.target.files[0]&&loadMatch(e.target.files[0],'B');
+$('#runMatch').onclick=()=>{
+  const a=state.matchA.rows,b=state.matchB.rows,ka=$('#keyA').value,kb=$('#keyB').value,adds=[...$('#addCols').selectedOptions].map(o=>o.value);
+  const map=new Map();b.forEach(r=>{const k=String(r[kb]??'');if(!map.has(k))map.set(k,r)});
+  let matched=0;const out=a.map(r=>{const br=map.get(String(r[ka]??''));if(br)matched++;const extra=Object.fromEntries(adds.map(c=>[c,br?br[c]:'']));return {...r,...extra}});
+  resultBox($('#resMatch'),out,`匹配结果_命中${matched}`);
+};
+
+/* 聚合 */
+$('#fileAgg').onchange=async e=>{
+  const file=e.target.files[0];if(!file)return;const wb=await readWB(file),rows=firstRows(wb),h=rows.length?Object.keys(rows[0]):[];state.agg={file,rows,h};
+  $('#barAgg').classList.add('show');$('#nameAgg').textContent=file.name;$('#metaAgg').textContent=fmtFile(file,rows);$('#cfgAgg').classList.add('show');fillSelect($('#groupCol'),h);fillSelect($('#metricCol'),h)
+};
+$('#aggMode').onchange=()=>$('#metricCol').disabled=$('#aggMode').value==='count';
+$('#runAgg').onclick=()=>{
+  const rows=state.agg.rows,g=$('#groupCol').value,m=$('#aggMode').value,c=$('#metricCol').value,b={};
+  rows.forEach(r=>(b[String(r[g]??'')]??=[]).push(r));
+  const out=Object.entries(b).map(([k,a])=>{let v;if(m==='count')v=a.length;if(m==='distinct')v=new Set(a.map(r=>String(r[c]??''))).size;if(m==='sum')v=a.reduce((s,r)=>s+(Number(r[c])||0),0);if(m==='avg')v=a.length?a.reduce((s,r)=>s+(Number(r[c])||0),0)/a.length:0;return {[g]:k,统计值:v}});
+  out.sort((x,y)=>Number(y.统计值)-Number(x.统计值));resultBox($('#resAgg'),out,'聚合统计结果');
+};
+
+/* SKU */
+const colors=['黑色','白色','米色','杏色','灰色','银色','金色','红色','粉色','黄色','绿色','蓝色','紫色','棕色','咖色','卡其'];
+const sizes=['XXXS','XXS','XS','S','M','L','XL','XXL','XXXL','2XL','3XL','4XL','5XL','均码','大号','中号','小号'];
+function parseSpec(s){
+  const text=String(s??'');let dims=[],weight='',color='',size='';
+  const dm=text.match(/(\d+(?:\.\d+)?)\s*(cm|mm|m|厘米|毫米|米)?\s*[xX×*]\s*(\d+(?:\.\d+)?)\s*(cm|mm|m|厘米|毫米|米)?(?:\s*[xX×*]\s*(\d+(?:\.\d+)?)\s*(cm|mm|m|厘米|毫米|米)?)?/i);
+  if(dm){const unit=(dm[2]||dm[4]||'cm').toLowerCase();let f=1; if(unit==='m'||unit==='米')f=100; if(unit==='mm'||unit==='毫米')f=.1; dims=[dm[1],dm[3],dm[5]].filter(Boolean).map(Number).map(x=>x*f)}
+  const wm=text.match(/(\d+(?:\.\d+)?)\s*(kg|千克|公斤|g|克)\b/i);if(wm){weight=Number(wm[1])*(/^(g|克)$/i.test(wm[2])?.001:1)}
+  color=colors.find(x=>text.includes(x))||'';
+  size=sizes.find(x=>new RegExp(`(^|[^A-Za-z0-9])${x}([^A-Za-z0-9]|$)`,'i').test(text))||'';
+  return {color,size,dims,weight};
+}
+$('#fileProduct').onchange=async e=>{
+  const file=e.target.files[0];if(!file)return;const wb=await readWB(file),rows=firstRows(wb),h=rows.length?Object.keys(rows[0]):[];state.product={rows};
+  $('#barProduct').classList.add('show');$('#nameProduct').textContent=file.name;$('#metaProduct').textContent=fmtFile(file,rows);$('#cfgProduct').classList.add('show');fillSelect($('#skuCol'),h)
+};
+$('#runProduct').onclick=()=>{
+  const rows=state.product.rows,col=$('#skuCol').value,mode=$('#skuMode').value,t=Number($('#sizeThreshold').value||60);
+  let out=rows.map(r=>{const p=parseSpec(r[col]);return {...r,'解析颜色':p.color,'解析尺码':p.size,'尺寸(cm)':p.dims.join('×'),'最大边(cm)':p.dims.length?Math.max(...p.dims):'','重量(kg)':p.weight}});
+  if(mode==='large')out=out.filter(r=>Number(r['最大边(cm)'])>t);
+  if(mode==='invalid')out=out.filter(r=>!r['尺寸(cm)']||r['尺寸(cm)'].split('×').some(x=>Number(x)===0)||r['重量(kg)']==='');
+  resultBox($('#resProduct'),out,'SKU规格处理结果');
+};
+
+/* 1688 */
+$('#fileAli').onchange=async e=>{
+  const file=e.target.files[0];if(!file)return;const wb=await readWB(file),rows=firstRows(wb),h=rows.length?Object.keys(rows[0]):[];state.ali={rows};
+  $('#barAli').classList.add('show');$('#nameAli').textContent=file.name;$('#metaAli').textContent=fmtFile(file,rows);$('#cfgAli').classList.add('show');fillSelect($('#aliCol'),h)
+};
+$('#runAli').onclick=()=>{
+  const rows=state.ali.rows,col=$('#aliCol').value;
+  const out=rows.map(r=>{const raw=String(r[col]??''),m=raw.match(/https?:\/\/[^\s<>"']+/i),u=m?m[0]:'';let id='',shop='',clean='',type='文本';
+    if(u){try{const z=new URL(u);clean=z.protocol+'//'+z.host+z.pathname;const im=u.match(/offer\/(\d+)\.html/i)||u.match(/(?:offerId|productId|itemId|id)[=\/](\d{6,})/i);if(im)id=im[1];if(z.hostname==='detail.1688.com')type='商品链接';else if(z.hostname.endsWith('.1688.com')){type='店铺/1688链接';shop=z.protocol+'//'+z.hostname}}catch(e){type='无效链接'}}
+    return {...r,'链接类型':type,'1688商品ID':id,'1688店铺主页':shop,'干净链接':clean}
   });
+  resultBox($('#resAli'),out,'1688解析结果');
+};
+
+/* quality */
+$('#fileQuality').onchange=async e=>{
+  const file=e.target.files[0];if(!file)return;const wb=await readWB(file),rows=firstRows(wb),h=rows.length?Object.keys(rows[0]):[];state.quality={rows,h,file};
+  $('#barQuality').classList.add('show');$('#nameQuality').textContent=file.name;$('#metaQuality').textContent=fmtFile(file,rows);$('#cfgQuality').classList.add('show');fillSelect($('#qualityKey'),h)
+};
+$('#runQuality').onclick=()=>{
+  const {rows,h}=state.quality,key=$('#qualityKey').value;let blanks=0;rows.forEach(r=>h.forEach(c=>{if(String(r[c]??'').trim()==='')blanks++}));
+  const rowKeys=rows.map(r=>JSON.stringify(h.map(c=>r[c]))), dupRows=rowKeys.length-new Set(rowKeys).size;
+  const counts={};rows.forEach(r=>{const k=String(r[key]??'');counts[k]=(counts[k]||0)+1});const dupKeys=Object.values(counts).filter(x=>x>1).reduce((s,x)=>s+x,0);
+  let urlBad=0,urlCount=0;rows.forEach(r=>h.forEach(c=>{const x=String(r[c]??'');if(x.includes('http')){urlCount++;try{new URL((x.match(/https?:\/\/[^\s]+/)||[''])[0])}catch(e){urlBad++}}}));
+  $('#qualityReport').innerHTML=`<div class="result"><div class="rhead"><b>数据体检报告</b><span class="stat">${rows.length.toLocaleString()} 行 · ${h.length} 列</span></div>
+  <div class="body"><div class="profile"><div class="pcard"><span>总行数</span><b>${rows.length.toLocaleString()}</b></div><div class="pcard"><span>空值单元格</span><b>${blanks.toLocaleString()}</b></div><div class="pcard"><span>重复整行</span><b>${dupRows.toLocaleString()}</b></div><div class="pcard"><span>重复主键记录</span><b>${dupKeys.toLocaleString()}</b></div></div>
+  <div class="issues">
+    <div class="issue"><div><b>空值</b><br><span>文件中所有空白单元格数量</span></div><span class="badge ${blanks?'warn':'good'}">${blanks?blanks+' 个':'正常'}</span></div>
+    <div class="issue"><div><b>重复主键</b><br><span>按「${esc(key)}」检查</span></div><span class="badge ${dupKeys?'bad':'good'}">${dupKeys?dupKeys+' 条':'正常'}</span></div>
+    <div class="issue"><div><b>URL 格式</b><br><span>检测到 ${urlCount} 个疑似 URL 单元格</span></div><span class="badge ${urlBad?'warn':'good'}">${urlBad?urlBad+' 个可疑':'正常'}</span></div>
+  </div></div></div>`;
+};
+
+/* quick */
+$$('[data-q]').forEach(b=>b.onclick=()=>{
+  const raw=$('#quickIn').value,ls=raw.replace(/\r/g,'').split('\n').map(x=>x.trim()).filter(Boolean),t=b.dataset.q;let out='';
+  if(t==='dedupe')out=[...new Set(ls)].join('\n');
+  if(t==='sql')out="IN (\n  "+ls.map(x=>"'"+x.replace(/'/g,"''")+"'").join(',\n  ')+"\n)";
+  if(t==='json')out=JSON.stringify(ls,null,2);
+  if(t==='domain'){const us=[...raw.matchAll(/https?:\/\/[^\s<>"']+/g)].map(m=>m[0]);out=[...new Set(us.map(u=>{try{const z=new URL(u);return z.protocol+'//'+z.hostname}catch(e){return''}}).filter(Boolean))].join('\n')}
+  if(t==='aliid'){const ids=[];ls.forEach(x=>{const m=x.match(/offer\/(\d+)\.html/i)||x.match(/\b(\d{8,})\b/);if(m)ids.push(m[1])});out=[...new Set(ids)].join('\n')}
+  $('#quickOut').value=out;
 });
-
-$('#sampleBtn').addEventListener('click', () => {
-  input.value = `2026跨境爆款亚马逊女包草编包沙滩度假风编织手提包
-厂家直销新款拉菲草编织托特包 35x28cm
-SKU：米色-大号 60*90cm
-https://detail.1688.com/offer/123456789012.html
-黑色 XL 0.8×1.2m`;
-  counters();
-});
-
-$('#clearBtn').addEventListener('click', () => {
-  input.value = '';
-  output.value = '';
-  counters();
-});
-
-$('#clearOutputBtn').addEventListener('click', () => {
-  output.value = '';
-  counters();
-});
-
-
-function openDialog(id){
-  const el = document.getElementById(id);
-  if(!el) return;
-  el.classList.add('show');
-  if(id === 'prefixDialog'){
-    updatePrefixPreview();
-    setTimeout(()=>$('#linePrefix').focus(), 50);
-  }
-  if(id === 'replaceDialog'){
-    setTimeout(()=>$('#findText').focus(), 50);
-  }
-}
-function closeDialog(id){
-  const el = document.getElementById(id);
-  if(el) el.classList.remove('show');
-}
-
-function updatePrefixPreview(){
-  const first = cleanLines(input.value)[0] || '原内容';
-  const prefix = $('#linePrefix') ? $('#linePrefix').value : '';
-  const suffix = $('#lineSuffix') ? $('#lineSuffix').value : '';
-  const preview = $('#prefixPreview');
-  if(preview) preview.textContent = `${first} → ${prefix}${first}${suffix}`;
-}
-
-$('#linePrefix').addEventListener('input', updatePrefixPreview);
-$('#lineSuffix').addEventListener('input', updatePrefixPreview);
-
-$('#applyPrefixBtn').addEventListener('click', () => {
-  run('prefixSuffix');
-  closeDialog('prefixDialog');
-});
-
-$('#applyReplaceBtn').addEventListener('click', () => {
-  const find = $('#findText').value;
-  if(!find){
-    $('#findText').focus();
-    return;
-  }
-  run('replaceText');
-  closeDialog('replaceDialog');
-});
-
-$$('.dialog-backdrop').forEach(el=>{
-  el.addEventListener('click', e=>{
-    if(e.target === el) closeDialog(el.id);
-  });
-});
-
-document.addEventListener('keydown', e=>{
-  if(e.key === 'Escape'){
-    $$('.dialog-backdrop.show').forEach(el=>closeDialog(el.id));
-  }
-});
-
-$('#continueBtn').addEventListener('click', () => {
-  const value = output.value;
-  if(!value.trim()) return;
-  input.value = value;
-  counters();
-
-  const leftPanel = input.closest('.panel');
-  leftPanel.classList.remove('flash');
-  void leftPanel.offsetWidth;
-  leftPanel.classList.add('flash');
-
-  input.scrollTop = 0;
-  input.focus();
-
-  const s = $('#continueSuccess');
-  s.classList.add('show');
-  setTimeout(()=>s.classList.remove('show'), 1500);
-});
-
-$('#downloadBtn').addEventListener('click', () => {
-  if(!output.value) return;
-  const blob = new Blob([output.value], {type:'text/plain;charset=utf-8'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = '粘一下_处理结果.txt';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-});
-
-$('#copyBtn').addEventListener('click', async () => {
-  if(!output.value) return;
-  try{
-    await navigator.clipboard.writeText(output.value);
-  }catch(e){
-    output.select();
-    document.execCommand('copy');
-  }
-  const s = $('#copySuccess');
-  s.classList.add('show');
-  setTimeout(() => s.classList.remove('show'), 1000);
-});
-
-input.addEventListener('input', counters);
-output.addEventListener('input', counters);
-counters();
+$('#quickContinue').onclick=()=>{if($('#quickOut').value.trim())$('#quickIn').value=$('#quickOut').value};
+$('#quickCopy').onclick=async()=>{if(!$('#quickOut').value)return;try{await navigator.clipboard.writeText($('#quickOut').value)}catch(e){$('#quickOut').select();document.execCommand('copy')}};
 </script>
 </body>
 </html>

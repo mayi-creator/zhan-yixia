@@ -218,6 +218,8 @@
     .info-cards{grid-template-columns:1fr 1fr}
   }
   @media (max-width:680px){
+    .compact-hero{padding:18px 20px}
+    .compact-hero .hero-main h2{font-size:26px}
     .wrap{padding:16px 12px 36px}
     .topbar{align-items:flex-start}
     .hero{padding:20px}
@@ -228,6 +230,39 @@
     .info-cards{grid-template-columns:1fr}
     .tag{display:none}
   }
+
+  .compact-hero{
+    display:block;
+    padding:24px 28px;
+  }
+  .compact-hero .hero-main h2{
+    font-size:30px;
+    margin:0 0 8px;
+  }
+  .compact-hero .hero-main p{
+    margin:0;
+    max-width:none;
+  }
+  .privacy-note{
+    font-size:11px;
+    color:var(--muted);
+    margin-left:auto;
+    align-self:center;
+  }
+  .tool.wide{
+    grid-column:1/-1;
+    min-height:72px;
+  }
+  .inline-config{
+    margin-top:10px;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+  @media(max-width:680px){
+    .inline-config{grid-template-columns:1fr}
+  }
+
 </style>
 </head>
 <body>
@@ -240,50 +275,27 @@
         <p>运营 / 选品 / 数据临时处理，先在这里搞定。</p>
       </div>
     </div>
-    <div class="tag">纯前端 · 本地处理 · 不上传数据</div>
+    
   </div>
 
-  <section class="hero">
+  
+  <section class="hero compact-hero">
     <div class="hero-main">
-      <h2>别折腾 Excel 了，<br>先粘一下。</h2>
-      <p>
-        这一版把 UI 重做得更像正式产品，同时保留你常用的运营和选品功能：
-        商品标题清洗、关键词词频、1688 商品 ID 提取、SKU 尺寸筛查、SQL IN 生成等。
-      </p>
-      <div class="hero-pills">
-        <div class="pill">商品标题清洗</div>
-        <div class="pill">关键词词频</div>
-        <div class="pill">1688 ID 提取</div>
-        <div class="pill">尺寸 &gt; 60cm 筛查</div>
-        <div class="pill">SQL / JSON / 链接工具</div>
-      </div>
-    </div>
-    <div class="hero-side">
-      <div class="mini">
-        <div class="label">最适合</div>
-        <div class="value">运营 / 选品 / 数据</div>
-        <div class="desc">一页里先做 80% 的临时处理。</div>
-      </div>
-      <div class="mini">
-        <div class="label">处理方式</div>
-        <div class="value">浏览器本地</div>
-        <div class="desc">不登录，不传服务器。</div>
-      </div>
-      <div class="mini full">
-        <div class="label">推荐使用流程</div>
-        <div class="value" style="font-size:18px">左边粘贴 → 中间点功能 → 右边复制结果</div>
-        <div class="desc">适合快速做一次性清洗和转换。</div>
-      </div>
+      <h2>粘进来，处理完，复制走。</h2>
+      <p>标题、链接、ID、SKU 描述和名单，都可以在这里快速清洗、提取和转换。</p>
     </div>
   </section>
 
-  <div class="tabs">
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div class="tabs" style="margin-bottom:0;flex:1;">
     <button class="tab active" data-tab="basic">文本整理</button>
     <button class="tab" data-tab="ops">运营</button>
     <button class="tab" data-tab="selection">选品</button>
     <button class="tab" data-tab="sql">SQL</button>
     <button class="tab" data-tab="extract">提取</button>
   </div>
+  <div class="privacy-note">数据仅在当前浏览器中处理</div>
+</div>
 
   <section class="workspace">
     <section class="panel">
@@ -327,6 +339,29 @@ https://detail.1688.com/offer/123456789012.html
           <button class="tool" onclick="run('sort')"><span class="icon">↕</span><b>按行排序</b><small>适合整理名单</small></button>
           <button class="tool" onclick="run('quotes')"><span class="icon">“”</span><b>每行加引号</b><small>常用于 SQL</small></button>
           <button class="tool" onclick="run('comma')"><span class="icon">,</span><b>逗号连接</b><small>把多行变一行</small></button>
+          <button class="tool" onclick="run('prefixSuffix')"><span class="icon">±</span><b>批量前后缀</b><small>每行统一加前缀 / 后缀</small></button>
+          <button class="tool" onclick="run('replaceText')"><span class="icon">↺</span><b>批量替换</b><small>查找并替换文本</small></button>
+        </div>
+        <div class="extra-box" id="basicExtra">
+          <h3>批量处理配置</h3>
+          <div class="extra-grid">
+            <div class="field">
+              <label>前缀</label>
+              <input id="linePrefix" placeholder="例如 SKU-">
+            </div>
+            <div class="field">
+              <label>后缀</label>
+              <input id="lineSuffix" placeholder="例如 -US">
+            </div>
+            <div class="field">
+              <label>查找内容</label>
+              <input id="findText" placeholder="需要替换的内容">
+            </div>
+            <div class="field">
+              <label>替换为</label>
+              <input id="replaceWith" placeholder="替换后的内容">
+            </div>
+          </div>
         </div>
       </div>
 
@@ -370,7 +405,9 @@ https://detail.1688.com/offer/123456789012.html
           <button class="tool" onclick="run('numbers')"><span class="icon">123</span><b>提取数字</b><small>支持整数和小数</small></button>
           <button class="tool" onclick="run('urls')"><span class="icon">↗</span><b>提取链接</b><small>识别 http / https</small></button>
           <button class="tool" onclick="run('emails')"><span class="icon">@</span><b>提取邮箱</b><small>批量抓邮箱</small></button>
-          <button class="tool" onclick="run('domain')"><span class="icon">.com</span><b>提取域名</b><small>从链接中提主域名</small></button>
+          <button class="tool" onclick="run('domain')"><span class="icon">.com</span><b>提取域名</b><small>保留 http / https 前缀</small></button>
+          <button class="tool" onclick="run('cleanUrls')"><span class="icon">⌁</span><b>链接去参数</b><small>移除 ? 后的跟踪参数</small></button>
+          <button class="tool" onclick="run('aliShop')"><span class="icon">店</span><b>提取 1688 店铺主页</b><small>输出协议 + 店铺域名</small></button>
           <button class="tool" onclick="run('json')"><span class="icon">{ }</span><b>转 JSON 数组</b><small>多行变数组</small></button>
         </div>
       </div>
@@ -427,29 +464,11 @@ https://detail.1688.com/offer/123456789012.html
         </div>
         <div class="right-actions">
           <button class="btn" id="clearOutputBtn">清空结果</button>
+          <button class="btn" id="downloadBtn">下载结果</button>
           <button class="btn primary" id="copyBtn">复制结果</button>
         </div>
       </div>
     </section>
-  </section>
-
-  <section class="info-cards">
-    <div class="info">
-      <b>运营：商品标题清洗</b>
-      <p>批量去掉“跨境 / 爆款 / 一件代发 / 新款 / 亚马逊”等常见营销噪音词。</p>
-    </div>
-    <div class="info">
-      <b>运营：关键词词频</b>
-      <p>把一批标题粘进来，快速看最常出现的材质、元素和风格词。</p>
-    </div>
-    <div class="info">
-      <b>选品：大件风险筛查</b>
-      <p>从 SKU 描述里提取尺寸，并直接筛出任意一边超过 60cm 的记录。</p>
-    </div>
-    <div class="info">
-      <b>选品：1688 搜索词扩写</b>
-      <p>输入核心词和风格维度，快速扩出一批能直接去 1688 搜索的组合词。</p>
-    </div>
   </section>
 </div>
 
@@ -512,6 +531,21 @@ function run(type){
   if(type === 'sort') result = [...ls].sort((a,b)=>a.localeCompare(b,'zh-CN',{numeric:true})).join('\n');
   if(type === 'quotes') result = ls.map(x => `'${escSql(x)}'`).join('\n');
   if(type === 'comma') result = ls.join(',');
+
+  if(type === 'prefixSuffix'){
+    const prefix = $('#linePrefix').value || '';
+    const suffix = $('#lineSuffix').value || '';
+    result = ls.map(x => prefix + x + suffix).join('\n');
+  }
+  if(type === 'replaceText'){
+    const find = $('#findText').value;
+    const replaceWith = $('#replaceWith').value || '';
+    if(!find){
+      result = raw;
+    }else{
+      result = raw.split(find).join(replaceWith);
+    }
+  }
 
   if(type === 'keywordFreq'){
     const map = {};
@@ -607,7 +641,40 @@ function run(type){
   if(type === 'emails') result = unique([...raw.matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)].map(m=>m[0])).join('\n');
   if(type === 'domain'){
     const urls = [...raw.matchAll(/https?:\/\/[^\s<>"']+/g)].map(m=>m[0]);
-    result = unique(urls.map(u=>{ try { return new URL(u).hostname; } catch(e){ return ''; } }).filter(Boolean)).join('\n');
+    result = unique(urls.map(u=>{ 
+      try { 
+        const url = new URL(u);
+        return url.protocol + '//' + url.hostname;
+      } catch(e){ 
+        return ''; 
+      } 
+    }).filter(Boolean)).join('\n');
+  }
+  if(type === 'cleanUrls'){
+    const urls = [...raw.matchAll(/https?:\/\/[^\s<>"']+/g)].map(m=>m[0].replace(/[),.;]+$/,''));
+    result = unique(urls.map(u=>{
+      try{
+        const url = new URL(u);
+        return url.protocol + '//' + url.host + url.pathname;
+      }catch(e){
+        return u.split('?')[0].split('#')[0];
+      }
+    })).join('\n');
+  }
+  if(type === 'aliShop'){
+    const urls = [...raw.matchAll(/https?:\/\/[^\s<>"']+/g)].map(m=>m[0].replace(/[),.;]+$/,''));
+    const shops = urls.map(u=>{
+      try{
+        const url = new URL(u);
+        if(url.hostname.endsWith('.1688.com')){
+          return url.protocol + '//' + url.hostname;
+        }
+        return '';
+      }catch(e){
+        return '';
+      }
+    }).filter(Boolean);
+    result = unique(shops).join('\n');
   }
   if(type === 'json') result = JSON.stringify(ls, null, 2);
 
@@ -662,6 +729,19 @@ $('#swapBtn').addEventListener('click', () => {
     output.value = '';
     counters();
   }
+});
+
+$('#downloadBtn').addEventListener('click', () => {
+  if(!output.value) return;
+  const blob = new Blob([output.value], {type:'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '粘一下_处理结果.txt';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 });
 
 $('#copyBtn').addEventListener('click', async () => {

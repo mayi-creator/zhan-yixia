@@ -263,6 +263,64 @@
     .inline-config{grid-template-columns:1fr}
   }
 
+
+  .dialog-backdrop{
+    position:fixed;
+    inset:0;
+    background:rgba(15,23,42,.28);
+    backdrop-filter:blur(8px);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    z-index:100;
+  }
+  .dialog-backdrop.show{display:flex}
+  .dialog-card{
+    width:min(480px,100%);
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:24px;
+    box-shadow:0 28px 80px rgba(16,24,40,.22);
+    overflow:hidden;
+  }
+  .dialog-head{
+    display:flex;
+    justify-content:space-between;
+    gap:18px;
+    padding:22px 22px 16px;
+  }
+  .dialog-head h3{margin:0;font-size:18px}
+  .dialog-head p{margin:6px 0 0;font-size:12px;color:var(--muted);line-height:1.6}
+  .dialog-close{
+    width:34px;height:34px;border:0;border-radius:10px;
+    background:var(--soft);font-size:22px;color:var(--muted);
+  }
+  .dialog-body{padding:0 22px 18px;display:grid;gap:14px}
+  .dialog-preview{
+    border:1px solid var(--line);
+    background:#f8fafc;
+    border-radius:14px;
+    padding:12px 14px;
+  }
+  .dialog-preview span{display:block;font-size:11px;color:var(--muted);margin-bottom:6px}
+  .dialog-preview code{font-size:12px;color:var(--text2);word-break:break-all}
+  .dialog-actions{
+    border-top:1px solid var(--line);
+    padding:14px 22px;
+    display:flex;
+    justify-content:flex-end;
+    gap:10px;
+  }
+  .panel.flash{
+    animation:panelFlash .9s ease;
+  }
+  @keyframes panelFlash{
+    0%{box-shadow:0 0 0 0 rgba(124,58,237,0), var(--shadow)}
+    35%{box-shadow:0 0 0 5px rgba(124,58,237,.14), var(--shadow)}
+    100%{box-shadow:0 0 0 0 rgba(124,58,237,0), var(--shadow)}
+  }
+
 </style>
 </head>
 <body>
@@ -302,7 +360,7 @@
       <div class="panel-head">
         <div>
           <div class="panel-title">原始内容</div>
-          <div class="subcounter">把标题、链接、ID、SKU 描述或名单粘进来</div>
+          <div class="subcounter">粘贴待处理内容；处理结果可再次放回这里继续加工</div>
         </div>
         <div class="counter" id="inputCounter">0 行 · 0 字符</div>
       </div>
@@ -318,9 +376,7 @@ https://detail.1688.com/offer/123456789012.html
           <button class="btn soft" id="sampleBtn">放个示例</button>
           <button class="btn" id="clearBtn">清空</button>
         </div>
-        <div class="right-actions">
-          <button class="btn" id="swapBtn">⇄ 结果放回左边</button>
-        </div>
+        <div class="right-actions"></div>
       </div>
     </section>
 
@@ -339,29 +395,8 @@ https://detail.1688.com/offer/123456789012.html
           <button class="tool" onclick="run('sort')"><span class="icon">↕</span><b>按行排序</b><small>适合整理名单</small></button>
           <button class="tool" onclick="run('quotes')"><span class="icon">“”</span><b>每行加引号</b><small>常用于 SQL</small></button>
           <button class="tool" onclick="run('comma')"><span class="icon">,</span><b>逗号连接</b><small>把多行变一行</small></button>
-          <button class="tool" onclick="run('prefixSuffix')"><span class="icon">±</span><b>批量前后缀</b><small>每行统一加前缀 / 后缀</small></button>
-          <button class="tool" onclick="run('replaceText')"><span class="icon">↺</span><b>批量替换</b><small>查找并替换文本</small></button>
-        </div>
-        <div class="extra-box" id="basicExtra">
-          <h3>批量处理配置</h3>
-          <div class="extra-grid">
-            <div class="field">
-              <label>前缀</label>
-              <input id="linePrefix" placeholder="例如 SKU-">
-            </div>
-            <div class="field">
-              <label>后缀</label>
-              <input id="lineSuffix" placeholder="例如 -US">
-            </div>
-            <div class="field">
-              <label>查找内容</label>
-              <input id="findText" placeholder="需要替换的内容">
-            </div>
-            <div class="field">
-              <label>替换为</label>
-              <input id="replaceWith" placeholder="替换后的内容">
-            </div>
-          </div>
+          <button class="tool" onclick="openDialog('prefixDialog')"><span class="icon">±</span><b>批量前后缀</b><small>为每一行统一加内容</small></button>
+          <button class="tool" onclick="openDialog('replaceDialog')"><span class="icon">↺</span><b>批量替换</b><small>查找内容并统一替换</small></button>
         </div>
       </div>
 
@@ -453,7 +488,7 @@ https://detail.1688.com/offer/123456789012.html
       <div class="panel-head">
         <div>
           <div class="panel-title">处理结果</div>
-          <div class="subcounter">处理完成后，可直接复制给 Excel / SQL / 其他工具</div>
+          <div class="subcounter">复制、下载，或用结果继续做下一步处理</div>
         </div>
         <div class="counter" id="outputCounter">0 行 · 0 字符</div>
       </div>
@@ -461,15 +496,77 @@ https://detail.1688.com/offer/123456789012.html
       <div class="panel-foot">
         <div class="left-actions">
           <span class="success" id="copySuccess">已复制</span>
+          <span class="success" id="continueSuccess">已放到左侧，可继续处理</span>
         </div>
         <div class="right-actions">
           <button class="btn" id="clearOutputBtn">清空结果</button>
           <button class="btn" id="downloadBtn">下载结果</button>
+          <button class="btn" id="continueBtn">← 用结果继续处理</button>
           <button class="btn primary" id="copyBtn">复制结果</button>
         </div>
       </div>
     </section>
   </section>
+</div>
+
+<div class="dialog-backdrop" id="prefixDialog">
+  <div class="dialog-card">
+    <div class="dialog-head">
+      <div>
+        <h3>批量前后缀</h3>
+        <p>给左侧每一行统一加上前缀或后缀。</p>
+      </div>
+      <button class="dialog-close" onclick="closeDialog('prefixDialog')">×</button>
+    </div>
+    <div class="dialog-body">
+      <div class="field">
+        <label>前缀</label>
+        <input id="linePrefix" placeholder="例如 SKU-">
+      </div>
+      <div class="field">
+        <label>后缀</label>
+        <input id="lineSuffix" placeholder="例如 -US">
+      </div>
+      <div class="dialog-preview">
+        <span>预览</span>
+        <code id="prefixPreview">原内容 → 原内容</code>
+      </div>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn" onclick="closeDialog('prefixDialog')">取消</button>
+      <button class="btn primary" id="applyPrefixBtn">应用到每一行</button>
+    </div>
+  </div>
+</div>
+
+<div class="dialog-backdrop" id="replaceDialog">
+  <div class="dialog-card">
+    <div class="dialog-head">
+      <div>
+        <h3>批量替换</h3>
+        <p>查找左侧文本中的指定内容，并全部替换。</p>
+      </div>
+      <button class="dialog-close" onclick="closeDialog('replaceDialog')">×</button>
+    </div>
+    <div class="dialog-body">
+      <div class="field">
+        <label>查找内容</label>
+        <input id="findText" placeholder="例如 2026">
+      </div>
+      <div class="field">
+        <label>替换为</label>
+        <input id="replaceWith" placeholder="例如 2027；留空则删除">
+      </div>
+      <div class="dialog-preview">
+        <span>说明</span>
+        <code>会替换全部匹配内容，不区分行</code>
+      </div>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn" onclick="closeDialog('replaceDialog')">取消</button>
+      <button class="btn primary" id="applyReplaceBtn">全部替换</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -723,12 +820,79 @@ $('#clearOutputBtn').addEventListener('click', () => {
   counters();
 });
 
-$('#swapBtn').addEventListener('click', () => {
-  if(output.value.trim()){
-    input.value = output.value;
-    output.value = '';
-    counters();
+
+function openDialog(id){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.classList.add('show');
+  if(id === 'prefixDialog'){
+    updatePrefixPreview();
+    setTimeout(()=>$('#linePrefix').focus(), 50);
   }
+  if(id === 'replaceDialog'){
+    setTimeout(()=>$('#findText').focus(), 50);
+  }
+}
+function closeDialog(id){
+  const el = document.getElementById(id);
+  if(el) el.classList.remove('show');
+}
+
+function updatePrefixPreview(){
+  const first = cleanLines(input.value)[0] || '原内容';
+  const prefix = $('#linePrefix') ? $('#linePrefix').value : '';
+  const suffix = $('#lineSuffix') ? $('#lineSuffix').value : '';
+  const preview = $('#prefixPreview');
+  if(preview) preview.textContent = `${first} → ${prefix}${first}${suffix}`;
+}
+
+$('#linePrefix').addEventListener('input', updatePrefixPreview);
+$('#lineSuffix').addEventListener('input', updatePrefixPreview);
+
+$('#applyPrefixBtn').addEventListener('click', () => {
+  run('prefixSuffix');
+  closeDialog('prefixDialog');
+});
+
+$('#applyReplaceBtn').addEventListener('click', () => {
+  const find = $('#findText').value;
+  if(!find){
+    $('#findText').focus();
+    return;
+  }
+  run('replaceText');
+  closeDialog('replaceDialog');
+});
+
+$$('.dialog-backdrop').forEach(el=>{
+  el.addEventListener('click', e=>{
+    if(e.target === el) closeDialog(el.id);
+  });
+});
+
+document.addEventListener('keydown', e=>{
+  if(e.key === 'Escape'){
+    $$('.dialog-backdrop.show').forEach(el=>closeDialog(el.id));
+  }
+});
+
+$('#continueBtn').addEventListener('click', () => {
+  const value = output.value;
+  if(!value.trim()) return;
+  input.value = value;
+  counters();
+
+  const leftPanel = input.closest('.panel');
+  leftPanel.classList.remove('flash');
+  void leftPanel.offsetWidth;
+  leftPanel.classList.add('flash');
+
+  input.scrollTop = 0;
+  input.focus();
+
+  const s = $('#continueSuccess');
+  s.classList.add('show');
+  setTimeout(()=>s.classList.remove('show'), 1500);
 });
 
 $('#downloadBtn').addEventListener('click', () => {

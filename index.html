@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>粘一下 · 运营选品版 UI 优化</title>
+<style>
+  :root{
+    --bg:#f5f7fb;
+    --bg2:#eef3ff;
+    --card:#ffffffcc;
+    --card-solid:#ffffff;
+    --text:#101828;
+    --text2:#344054;
+    --muted:#667085;
+    --line:#e4e7ec;
+    --accent:#7c3aed;
+    --accent2:#2563eb;
+    --accent-soft:#f3e8ff;
+    --blue-soft:#eaf2ff;
+    --success:#16a34a;
+    --shadow:0 20px 50px rgba(16,24,40,.08);
+    --shadow2:0 10px 24px rgba(16,24,40,.06);
+    --radius:22px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    color:var(--text);
+    background:
+      radial-gradient(circle at 0% 0%, rgba(124,58,237,.08), transparent 22%),
+      radial-gradient(circle at 100% 10%, rgba(37,99,235,.08), transparent 20%),
+      linear-gradient(180deg,#f8fbff 0%, var(--bg) 100%);
+  }
+  button,input,textarea,select{font:inherit}
+  button{cursor:pointer}
+  .wrap{max-width:1400px;margin:0 auto;padding:28px 20px 56px}
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px;
+  }
+  .brand{display:flex;align-items:center;gap:14px}
+  .logo{
+    width:48px;height:48px;border-radius:16px;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    color:#fff;display:grid;place-items:center;font-size:20px;font-weight:800;
+    box-shadow:0 12px 30px rgba(124,58,237,.25);
+  }
+  .brand h1{font-size:22px;margin:0}
+  .brand p{font-size:13px;color:var(--muted);margin:4px 0 0}
+  .tag{
+    white-space:nowrap;
+    background:#fff;border:1px solid var(--line);color:var(--muted);
+    padding:10px 14px;border-radius:999px;font-size:12px;
+    box-shadow:var(--shadow2);
+  }
+
+  .hero{
+    background:linear-gradient(135deg, rgba(255,255,255,.9), rgba(255,255,255,.75));
+    border:1px solid rgba(255,255,255,.8);
+    backdrop-filter: blur(12px);
+    border-radius:30px;
+    box-shadow:var(--shadow);
+    padding:30px;
+    margin-bottom:18px;
+    display:grid;
+    grid-template-columns:1.15fr .85fr;
+    gap:18px;
+  }
+  .hero-main h2{font-size:40px;line-height:1.12;letter-spacing:-.04em;margin:0 0 10px}
+  .hero-main p{font-size:14px;line-height:1.8;color:var(--text2);margin:0 0 20px;max-width:760px}
+  .hero-pills{display:flex;gap:10px;flex-wrap:wrap}
+  .pill{
+    padding:10px 14px;border-radius:999px;font-size:13px;
+    background:#fff;border:1px solid var(--line);color:var(--text2);
+  }
+  .hero-side{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+    align-content:start;
+  }
+  .mini{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:16px;
+    box-shadow:var(--shadow2);
+  }
+  .mini .label{font-size:12px;color:var(--muted);margin-bottom:8px}
+  .mini .value{font-size:20px;font-weight:800}
+  .mini .desc{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.55}
+  .mini.full{grid-column:1/-1;background:linear-gradient(135deg,var(--accent-soft),#fff)}
+
+  .tabs{
+    display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;
+  }
+  .tab{
+    border:1px solid var(--line);background:#fff;color:var(--text2);
+    padding:10px 16px;border-radius:999px;font-size:13px;font-weight:600;
+    box-shadow:var(--shadow2);
+  }
+  .tab.active{
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    border-color:transparent;color:#fff;
+  }
+
+  .workspace{
+    display:grid;
+    grid-template-columns:1.02fr 360px 1.02fr;
+    gap:16px;
+    align-items:start;
+  }
+  .panel,.center{
+    background:rgba(255,255,255,.82);
+    backdrop-filter: blur(10px);
+    border:1px solid rgba(255,255,255,.8);
+    border-radius:28px;
+    box-shadow:var(--shadow);
+  }
+  .panel{overflow:hidden;min-height:690px;display:flex;flex-direction:column}
+  .panel-head{
+    padding:18px 20px;
+    display:flex;justify-content:space-between;align-items:center;
+    border-bottom:1px solid #edf0f3;
+  }
+  .panel-title{font-size:15px;font-weight:800}
+  .counter{font-size:12px;color:var(--muted)}
+  .subcounter{font-size:12px;color:var(--muted)}
+  textarea{
+    width:100%;flex:1;resize:none;border:0;outline:none;background:transparent;
+    padding:20px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    font-size:14px;line-height:1.72;color:var(--text);
+  }
+  textarea::placeholder{color:#98a2b3}
+  .panel-foot{
+    border-top:1px solid #edf0f3;
+    padding:14px 16px;
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+  }
+  .left-actions,.right-actions{display:flex;gap:10px;flex-wrap:wrap}
+  .btn{
+    border:1px solid var(--line);
+    background:#fff;color:var(--text);
+    padding:10px 14px;border-radius:14px;font-size:13px;font-weight:600;
+    box-shadow:var(--shadow2);
+  }
+  .btn:hover{transform:translateY(-1px)}
+  .btn.primary{
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    color:#fff;border-color:transparent;
+  }
+  .btn.soft{background:#f9fafb}
+  .success{
+    font-size:12px;color:var(--success);opacity:0;transition:.2s
+  }
+  .success.show{opacity:1}
+
+  .center{padding:14px;position:sticky;top:18px}
+  .tool-header{
+    margin-bottom:14px;
+  }
+  .tool-title{font-size:16px;font-weight:800}
+  .tool-sub{font-size:12px;color:var(--muted);line-height:1.6;margin-top:4px}
+  .section-label{
+    font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;
+    margin:14px 6px 8px;
+  }
+  .tool-grid{
+    display:grid;grid-template-columns:1fr 1fr;gap:10px;
+  }
+  .tool{
+    border:1px solid var(--line);
+    background:#fff;
+    border-radius:18px;
+    padding:14px;
+    min-height:86px;
+    text-align:left;
+    box-shadow:var(--shadow2);
+    display:flex;flex-direction:column;justify-content:space-between;
+  }
+  .tool:hover{border-color:#d5d8df;background:#fcfcfd}
+  .tool .icon{font-size:18px}
+  .tool b{font-size:13px;line-height:1.4}
+  .tool small{font-size:11px;color:var(--muted);line-height:1.5}
+
+  .extra-box{
+    margin-top:14px;padding:14px;background:#fff;border:1px solid var(--line);
+    border-radius:20px;box-shadow:var(--shadow2)
+  }
+  .extra-box h3{font-size:14px;margin:0 0 12px}
+  .extra-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field label{font-size:11px;color:var(--muted)}
+  input,select{
+    width:100%;border:1px solid var(--line);outline:none;background:#fff;
+    padding:10px 12px;border-radius:12px;color:var(--text);
+  }
+  input:focus,select:focus{border-color:#c7b6ff;box-shadow:0 0 0 4px rgba(124,58,237,.08)}
+  .hidden{display:none !important}
+
+  .info-cards{
+    margin-top:18px;
+    display:grid;grid-template-columns:repeat(4,1fr);gap:12px;
+  }
+  .info{
+    background:#fff;border:1px solid var(--line);border-radius:20px;padding:16px;box-shadow:var(--shadow2)
+  }
+  .info b{display:block;font-size:13px;margin-bottom:8px}
+  .info p{margin:0;font-size:12px;color:var(--muted);line-height:1.65}
+
+  @media (max-width:1100px){
+    .hero{grid-template-columns:1fr}
+    .workspace{grid-template-columns:1fr}
+    .center{position:static}
+    .panel{min-height:460px}
+    .info-cards{grid-template-columns:1fr 1fr}
+  }
+  @media (max-width:680px){
+    .wrap{padding:16px 12px 36px}
+    .topbar{align-items:flex-start}
+    .hero{padding:20px}
+    .hero-main h2{font-size:30px}
+    .hero-side{grid-template-columns:1fr}
+    .tool-grid{grid-template-columns:1fr 1fr}
+    .extra-grid{grid-template-columns:1fr}
+    .info-cards{grid-template-columns:1fr}
+    .tag{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo">粘</div>
+      <div>
+        <h1>粘一下</h1>
+        <p>运营 / 选品 / 数据临时处理，先在这里搞定。</p>
+      </div>
+    </div>
+    <div class="tag">纯前端 · 本地处理 · 不上传数据</div>
+  </div>
+
+  <section class="hero">
+    <div class="hero-main">
+      <h2>别折腾 Excel 了，<br>先粘一下。</h2>
+      <p>
+        这一版把 UI 重做得更像正式产品，同时保留你常用的运营和选品功能：
+        商品标题清洗、关键词词频、1688 商品 ID 提取、SKU 尺寸筛查、SQL IN 生成等。
+      </p>
+      <div class="hero-pills">
+        <div class="pill">商品标题清洗</div>
+        <div class="pill">关键词词频</div>
+        <div class="pill">1688 ID 提取</div>
+        <div class="pill">尺寸 &gt; 60cm 筛查</div>
+        <div class="pill">SQL / JSON / 链接工具</div>
+      </div>
+    </div>
+    <div class="hero-side">
+      <div class="mini">
+        <div class="label">最适合</div>
+        <div class="value">运营 / 选品 / 数据</div>
+        <div class="desc">一页里先做 80% 的临时处理。</div>
+      </div>
+      <div class="mini">
+        <div class="label">处理方式</div>
+        <div class="value">浏览器本地</div>
+        <div class="desc">不登录，不传服务器。</div>
+      </div>
+      <div class="mini full">
+        <div class="label">推荐使用流程</div>
+        <div class="value" style="font-size:18px">左边粘贴 → 中间点功能 → 右边复制结果</div>
+        <div class="desc">适合快速做一次性清洗和转换。</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="basic">文本整理</button>
+    <button class="tab" data-tab="ops">运营</button>
+    <button class="tab" data-tab="selection">选品</button>
+    <button class="tab" data-tab="sql">SQL</button>
+    <button class="tab" data-tab="extract">提取</button>
+  </div>
+
+  <section class="workspace">
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">原始内容</div>
+          <div class="subcounter">把标题、链接、ID、SKU 描述或名单粘进来</div>
+        </div>
+        <div class="counter" id="inputCounter">0 行 · 0 字符</div>
+      </div>
+      <textarea id="inputText" placeholder="例如：
+
+2026跨境爆款亚马逊女包草编包沙滩度假风编织手提包
+厂家直销新款拉菲草编织托特包 35x28cm
+SKU：米色-大号 60*90cm
+https://detail.1688.com/offer/123456789012.html
+黑色 XL 0.8×1.2m"></textarea>
+      <div class="panel-foot">
+        <div class="left-actions">
+          <button class="btn soft" id="sampleBtn">放个示例</button>
+          <button class="btn" id="clearBtn">清空</button>
+        </div>
+        <div class="right-actions">
+          <button class="btn" id="swapBtn">⇄ 结果放回左边</button>
+        </div>
+      </div>
+    </section>
+
+    <aside class="center">
+      <div class="tool-header">
+        <div class="tool-title" id="toolTitle">文本整理</div>
+        <div class="tool-sub" id="toolSub">处理名单、ID 和一列数据的常见动作。</div>
+      </div>
+
+      <div id="basicTools">
+        <div class="section-label">基础整理</div>
+        <div class="tool-grid">
+          <button class="tool" onclick="run('dedupe')"><span class="icon">≠</span><b>去重</b><small>按行去重并保留唯一项</small></button>
+          <button class="tool" onclick="run('blank')"><span class="icon">⌫</span><b>去空行</b><small>删除空白行</small></button>
+          <button class="tool" onclick="run('trim')"><span class="icon">↔</span><b>去首尾空格</b><small>清理每行前后空格</small></button>
+          <button class="tool" onclick="run('sort')"><span class="icon">↕</span><b>按行排序</b><small>适合整理名单</small></button>
+          <button class="tool" onclick="run('quotes')"><span class="icon">“”</span><b>每行加引号</b><small>常用于 SQL</small></button>
+          <button class="tool" onclick="run('comma')"><span class="icon">,</span><b>逗号连接</b><small>把多行变一行</small></button>
+        </div>
+      </div>
+
+      <div id="opsTools" class="hidden">
+        <div class="section-label">运营常用</div>
+        <div class="tool-grid">
+          <button class="tool" onclick="run('removePromo')"><span class="icon">✦</span><b>清洗商品标题</b><small>去爆款、跨境等噪音词</small></button>
+          <button class="tool" onclick="run('keywordFreq')"><span class="icon">TOP</span><b>关键词词频</b><small>看标题常见元素</small></button>
+          <button class="tool" onclick="run('lineLength')"><span class="icon">↔</span><b>标题长度检查</b><small>统计每行长度</small></button>
+          <button class="tool" onclick="run('duplicateTitles')"><span class="icon">2×</span><b>找重复标题</b><small>看重复出现了几次</small></button>
+          <button class="tool" onclick="run('wordCount')"><span class="icon">#</span><b>逐行字数统计</b><small>一行一个字数</small></button>
+          <button class="tool" onclick="run('dedupe')"><span class="icon">≠</span><b>标题去重</b><small>清理重复列表</small></button>
+        </div>
+      </div>
+
+      <div id="selectionTools" class="hidden">
+        <div class="section-label">选品常用</div>
+        <div class="tool-grid">
+          <button class="tool" onclick="run('aliId')"><span class="icon">1688</span><b>提取 1688 商品 ID</b><small>从链接和文本中抓取</small></button>
+          <button class="tool" onclick="run('dimensions')"><span class="icon">cm</span><b>提取 SKU 尺寸</b><small>识别常见尺寸格式</small></button>
+          <button class="tool" onclick="run('over60')"><span class="icon">⚠</span><b>筛任一边 &gt; 60cm</b><small>快速识别大件</small></button>
+          <button class="tool" onclick="run('colors')"><span class="icon">●</span><b>提取颜色词</b><small>常见中英颜色</small></button>
+          <button class="tool" onclick="run('sizes')"><span class="icon">XL</span><b>提取尺码词</b><small>常见服装尺码</small></button>
+          <button class="tool" onclick="run('searchWords')"><span class="icon">＋</span><b>生成 1688 搜索词</b><small>核心词 × 材质 × 风格 × 场景</small></button>
+        </div>
+      </div>
+
+      <div id="sqlTools" class="hidden">
+        <div class="section-label">SQL</div>
+        <div class="tool-grid">
+          <button class="tool" onclick="run('sqlIn')"><span class="icon">IN</span><b>转 IN (...)</b><small>只输出 IN 列表</small></button>
+          <button class="tool" onclick="run('sqlNotIn')"><span class="icon">NOT</span><b>转 NOT IN (...)</b><small>排除条件</small></button>
+          <button class="tool" onclick="run('whereIn')"><span class="icon">WHERE</span><b>生成 WHERE IN</b><small>带字段名</small></button>
+          <button class="tool" onclick="run('sqlValues')"><span class="icon">()</span><b>转 VALUES</b><small>一行一个值组</small></button>
+        </div>
+      </div>
+
+      <div id="extractTools" class="hidden">
+        <div class="section-label">提取工具</div>
+        <div class="tool-grid">
+          <button class="tool" onclick="run('numbers')"><span class="icon">123</span><b>提取数字</b><small>支持整数和小数</small></button>
+          <button class="tool" onclick="run('urls')"><span class="icon">↗</span><b>提取链接</b><small>识别 http / https</small></button>
+          <button class="tool" onclick="run('emails')"><span class="icon">@</span><b>提取邮箱</b><small>批量抓邮箱</small></button>
+          <button class="tool" onclick="run('domain')"><span class="icon">.com</span><b>提取域名</b><small>从链接中提主域名</small></button>
+          <button class="tool" onclick="run('json')"><span class="icon">{ }</span><b>转 JSON 数组</b><small>多行变数组</small></button>
+        </div>
+      </div>
+
+      <div class="extra-box hidden" id="searchExtra">
+        <h3>1688 搜索词组合器</h3>
+        <div class="extra-grid">
+          <div class="field">
+            <label>核心商品词（逗号分隔）</label>
+            <input id="coreWords" placeholder="草编包, 编织包">
+          </div>
+          <div class="field">
+            <label>材质词</label>
+            <input id="materialWords" placeholder="藤编, 纸绳, 拉菲草">
+          </div>
+          <div class="field">
+            <label>风格词</label>
+            <input id="styleWords" placeholder="法式, 度假风, 复古">
+          </div>
+          <div class="field">
+            <label>场景词</label>
+            <input id="sceneWords" placeholder="沙滩, 旅行, 夏季">
+          </div>
+        </div>
+      </div>
+
+      <div class="extra-box hidden" id="sqlExtra">
+        <h3>SQL 配置</h3>
+        <div class="extra-grid">
+          <div class="field">
+            <label>WHERE IN 字段名</label>
+            <input id="sqlField" value="product_id" placeholder="product_id">
+          </div>
+          <div class="field">
+            <label>VALUES 前缀（可选）</label>
+            <input id="sqlPrefix" placeholder="例如 INSERT INTO demo(id) VALUES">
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">处理结果</div>
+          <div class="subcounter">处理完成后，可直接复制给 Excel / SQL / 其他工具</div>
+        </div>
+        <div class="counter" id="outputCounter">0 行 · 0 字符</div>
+      </div>
+      <textarea id="outputText" placeholder="处理结果会出现在这里…"></textarea>
+      <div class="panel-foot">
+        <div class="left-actions">
+          <span class="success" id="copySuccess">已复制</span>
+        </div>
+        <div class="right-actions">
+          <button class="btn" id="clearOutputBtn">清空结果</button>
+          <button class="btn primary" id="copyBtn">复制结果</button>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <section class="info-cards">
+    <div class="info">
+      <b>运营：商品标题清洗</b>
+      <p>批量去掉“跨境 / 爆款 / 一件代发 / 新款 / 亚马逊”等常见营销噪音词。</p>
+    </div>
+    <div class="info">
+      <b>运营：关键词词频</b>
+      <p>把一批标题粘进来，快速看最常出现的材质、元素和风格词。</p>
+    </div>
+    <div class="info">
+      <b>选品：大件风险筛查</b>
+      <p>从 SKU 描述里提取尺寸，并直接筛出任意一边超过 60cm 的记录。</p>
+    </div>
+    <div class="info">
+      <b>选品：1688 搜索词扩写</b>
+      <p>输入核心词和风格维度，快速扩出一批能直接去 1688 搜索的组合词。</p>
+    </div>
+  </section>
+</div>
+
+<script>
+const input = document.getElementById('inputText');
+const output = document.getElementById('outputText');
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+
+const promoWords = ['跨境','爆款','厂家直销','源头厂家','工厂直销','一件代发','来图定制','新款','新品','热卖','热销','亚马逊','temu','tiktok','shein','速卖通','独立站','外贸','专供','同款','网红','ins风','现货','批发','支持定制','跨境专供'];
+const colorWords = ['黑色','白色','米色','杏色','灰色','银色','金色','红色','酒红','粉色','玫红','橙色','黄色','绿色','军绿','蓝色','藏青','紫色','棕色','咖色','卡其','透明','彩色','black','white','beige','gray','grey','red','pink','orange','yellow','green','blue','navy','purple','brown','khaki','gold','silver'];
+const sizeWords = ['XXXS','XXS','XS','S','M','L','XL','XXL','XXXL','XXXXL','2XL','3XL','4XL','5XL','6XL','均码','大码','小码','中码','加大码'];
+
+function lines(t){ return t.replace(/\r/g,'').split('\n'); }
+function cleanLines(t){ return lines(t).map(x => x.trim()).filter(Boolean); }
+function unique(arr){ return [...new Set(arr)]; }
+function escSql(s){ return String(s).replace(/'/g,"''"); }
+
+function counters(){
+  const a = input.value;
+  const b = output.value;
+  $('#inputCounter').textContent = `${a ? lines(a).length : 0} 行 · ${a.length} 字符`;
+  $('#outputCounter').textContent = `${b ? lines(b).length : 0} 行 · ${b.length} 字符`;
+}
+
+function tokensByChineseAndEnglish(text){
+  const arr = text.toLowerCase().match(/[\u4e00-\u9fa5]{2,8}|[a-z][a-z0-9\-]{2,}/g) || [];
+  const stop = new Set(['跨境','爆款','厂家','直销','商品','产品','新款','新品','批发','一件代发','支持','定制','适用','女款','男款','儿童','亚马逊','temu','tiktok']);
+  return arr.filter(x => !stop.has(x));
+}
+
+function parseDimensions(line){
+  const out = [];
+  const re = /(\d+(?:\.\d+)?)\s*(cm|厘米|mm|毫米|m|米)?\s*[xX×*✕]\s*(\d+(?:\.\d+)?)\s*(cm|厘米|mm|毫米|m|米)?(?:\s*[xX×*✕]\s*(\d+(?:\.\d+)?)\s*(cm|厘米|mm|毫米|m|米)?)?/g;
+  let m;
+  while((m = re.exec(line))){
+    const vals = [m[1], m[3], m[5]].filter(Boolean).map(Number);
+    const units = [m[2], m[4], m[6]].filter(Boolean);
+    const unit = (units[0] || 'cm').toLowerCase();
+    let factor = 1;
+    if(unit === 'm' || unit === '米') factor = 100;
+    if(unit === 'mm' || unit === '毫米') factor = 0.1;
+    out.push({ raw:m[0], cm:vals.map(v => v * factor) });
+  }
+  return out;
+}
+
+function splitWords(v){
+  return v.split(/[,，\n]/).map(x => x.trim()).filter(Boolean);
+}
+
+function run(type){
+  const raw = input.value;
+  const ls = cleanLines(raw);
+  let result = '';
+
+  if(type === 'dedupe') result = unique(ls).join('\n');
+  if(type === 'blank') result = lines(raw).filter(x => x.trim()).join('\n');
+  if(type === 'trim') result = lines(raw).map(x => x.trim()).join('\n');
+  if(type === 'sort') result = [...ls].sort((a,b)=>a.localeCompare(b,'zh-CN',{numeric:true})).join('\n');
+  if(type === 'quotes') result = ls.map(x => `'${escSql(x)}'`).join('\n');
+  if(type === 'comma') result = ls.join(',');
+
+  if(type === 'keywordFreq'){
+    const map = {};
+    ls.forEach(line => tokensByChineseAndEnglish(line).forEach(t => map[t] = (map[t] || 0) + 1));
+    result = Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,100).map(([k,v],i)=>`${String(i+1).padStart(2,'0')}\t${k}\t${v}`).join('\n');
+  }
+  if(type === 'removePromo'){
+    result = ls.map(line => {
+      let x = line;
+      promoWords.forEach(w => x = x.replace(new RegExp(w,'gi'),' '));
+      return x.replace(/[【】\[\]（）()]/g,' ').replace(/\s+/g,' ').trim();
+    }).join('\n');
+  }
+  if(type === 'lineLength') result = ls.map(x => `${x.length}\t${x}`).sort((a,b)=>parseInt(b)-parseInt(a)).join('\n');
+  if(type === 'duplicateTitles'){
+    const m = {};
+    ls.forEach(x => m[x] = (m[x] || 0) + 1);
+    result = Object.entries(m).filter(([,v])=>v>1).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${v}次\t${k}`).join('\n');
+  }
+  if(type === 'wordCount') result = ls.map(x => `${x.length}\t${x}`).join('\n');
+
+  if(type === 'aliId'){
+    const ids = [];
+    const regs = [
+      /offer\/(\d+)\.html/gi,
+      /(?:offerId|productId|itemId|id)[=\/](\d{6,})/gi,
+      /\b(\d{8,})\b/g
+    ];
+    ls.forEach(line => regs.forEach(r => { let m; while((m = r.exec(line))) ids.push(m[1]); }));
+    result = unique(ids).join('\n');
+  }
+  if(type === 'dimensions'){
+    const rows = [];
+    ls.forEach(line => {
+      const ds = parseDimensions(line);
+      if(ds.length) rows.push(`${ds.map(d=>d.raw).join(' | ')}\t${line}`);
+    });
+    result = rows.join('\n');
+  }
+  if(type === 'over60'){
+    const rows = [];
+    ls.forEach(line => {
+      const ds = parseDimensions(line);
+      const hits = ds.filter(d => d.cm.some(v => v > 60));
+      if(hits.length) rows.push(`${hits.map(d=>d.raw).join(' | ')}\t${line}`);
+    });
+    result = rows.join('\n');
+  }
+  if(type === 'colors'){
+    const found = [];
+    ls.forEach(line => colorWords.forEach(c => { if(line.toLowerCase().includes(c.toLowerCase())) found.push(c); }));
+    result = unique(found).join('\n');
+  }
+  if(type === 'sizes'){
+    const found = [];
+    ls.forEach(line => sizeWords.forEach(s => {
+      const re = new RegExp(`(^|[^A-Za-z0-9])${s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}([^A-Za-z0-9]|$)`,'i');
+      if(re.test(line) || line.includes(s)) found.push(s);
+    }));
+    result = unique(found).join('\n');
+  }
+  if(type === 'searchWords'){
+    const core = splitWords($('#coreWords').value);
+    const mat = splitWords($('#materialWords').value);
+    const sty = splitWords($('#styleWords').value);
+    const scene = splitWords($('#sceneWords').value);
+    const combos = [];
+    core.forEach(c => {
+      combos.push(c);
+      mat.forEach(m => combos.push(m + c));
+      sty.forEach(s => combos.push(s + c));
+      scene.forEach(sc => combos.push(sc + c));
+      mat.forEach(m => sty.forEach(s => combos.push(s + m + c)));
+      mat.forEach(m => scene.forEach(sc => combos.push(sc + m + c)));
+    });
+    result = unique(combos).join('\n');
+  }
+
+  if(type === 'sqlIn') result = `IN (\n  ${ls.map(x=>`'${escSql(x)}'`).join(',\n  ')}\n)`;
+  if(type === 'sqlNotIn') result = `NOT IN (\n  ${ls.map(x=>`'${escSql(x)}'`).join(',\n  ')}\n)`;
+  if(type === 'whereIn'){
+    const field = $('#sqlField').value.trim() || 'product_id';
+    result = `WHERE ${field} IN (\n  ${ls.map(x=>`'${escSql(x)}'`).join(',\n  ')}\n);`;
+  }
+  if(type === 'sqlValues'){
+    const prefix = $('#sqlPrefix').value.trim();
+    const vals = ls.map(x => `('${escSql(x)}')`).join(',\n');
+    result = (prefix ? prefix + '\n' : 'VALUES\n') + vals + ';';
+  }
+
+  if(type === 'numbers') result = [...raw.matchAll(/-?\d+(?:\.\d+)?/g)].map(m=>m[0]).join('\n');
+  if(type === 'urls') result = unique([...raw.matchAll(/https?:\/\/[^\s<>"']+/g)].map(m=>m[0].replace(/[),.;]+$/,''))).join('\n');
+  if(type === 'emails') result = unique([...raw.matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)].map(m=>m[0])).join('\n');
+  if(type === 'domain'){
+    const urls = [...raw.matchAll(/https?:\/\/[^\s<>"']+/g)].map(m=>m[0]);
+    result = unique(urls.map(u=>{ try { return new URL(u).hostname; } catch(e){ return ''; } }).filter(Boolean)).join('\n');
+  }
+  if(type === 'json') result = JSON.stringify(ls, null, 2);
+
+  output.value = result;
+  counters();
+}
+
+const tabMeta = {
+  basic: ['文本整理', '处理名单、ID 和一列数据的常见动作。'],
+  ops: ['运营', '更偏向商品标题、关键词和内容列表处理。'],
+  selection: ['选品', '更偏向 1688 链接、SKU 规格、尺寸和搜索词。'],
+  sql: ['SQL', '把一列内容快速转成 SQL 可用结构。'],
+  extract: ['提取', '从混合文本里抓数字、链接、邮箱、域名。']
+};
+
+$$('.tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    $$('.tab').forEach(x => x.classList.remove('active'));
+    btn.classList.add('active');
+    ['basic','ops','selection','sql','extract'].forEach(k => $('#' + k + 'Tools').classList.add('hidden'));
+    $('#' + btn.dataset.tab + 'Tools').classList.remove('hidden');
+    $('#searchExtra').classList.toggle('hidden', btn.dataset.tab !== 'selection');
+    $('#sqlExtra').classList.toggle('hidden', btn.dataset.tab !== 'sql');
+    $('#toolTitle').textContent = tabMeta[btn.dataset.tab][0];
+    $('#toolSub').textContent = tabMeta[btn.dataset.tab][1];
+  });
+});
+
+$('#sampleBtn').addEventListener('click', () => {
+  input.value = `2026跨境爆款亚马逊女包草编包沙滩度假风编织手提包
+厂家直销新款拉菲草编织托特包 35x28cm
+SKU：米色-大号 60*90cm
+https://detail.1688.com/offer/123456789012.html
+黑色 XL 0.8×1.2m`;
+  counters();
+});
+
+$('#clearBtn').addEventListener('click', () => {
+  input.value = '';
+  output.value = '';
+  counters();
+});
+
+$('#clearOutputBtn').addEventListener('click', () => {
+  output.value = '';
+  counters();
+});
+
+$('#swapBtn').addEventListener('click', () => {
+  if(output.value.trim()){
+    input.value = output.value;
+    output.value = '';
+    counters();
+  }
+});
+
+$('#copyBtn').addEventListener('click', async () => {
+  if(!output.value) return;
+  try{
+    await navigator.clipboard.writeText(output.value);
+  }catch(e){
+    output.select();
+    document.execCommand('copy');
+  }
+  const s = $('#copySuccess');
+  s.classList.add('show');
+  setTimeout(() => s.classList.remove('show'), 1000);
+});
+
+input.addEventListener('input', counters);
+output.addEventListener('input', counters);
+counters();
+</script>
+</body>
+</html>

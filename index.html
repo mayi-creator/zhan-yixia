@@ -87,11 +87,19 @@ input:focus,select:focus,textarea:focus{border-color:#b0aaff;box-shadow:0 0 0 3p
       <aside class="side">
         <div class="sec-title">文件</div>
         <div class="upload" id="drop">
-          <div class="big">📄</div><b>拖入 Excel / CSV</b><p>也可以点击按钮选择文件</p>
+          <div class="big">📄</div><b>拖入 Excel / CSV</b><p>也可以点击按钮选择文件；CSV 会自动识别中文编码</p>
           <button class="btn primary" onclick="document.getElementById('file').click()">选择文件</button>
           <input id="file" type="file" accept=".xlsx,.xls,.csv" hidden>
         </div>
         <div class="filebar" id="filebar"><div class="fi"><b id="fname"></b><span id="fmeta"></span></div><button class="btn soft" onclick="document.getElementById('file').click()">换文件</button></div>
+        <div class="field" id="encodingWrap" style="display:none;margin-top:10px">
+          <label>CSV 中文编码</label>
+          <select id="csvEncoding">
+            <option value="auto">自动识别（推荐）</option>
+            <option value="utf-8">UTF-8</option>
+            <option value="gb18030">GBK / GB18030</option>
+          </select>
+        </div>
 
         <div class="sec-title" style="margin-top:15px">你想做什么？</div>
         <div class="searchbox"><span class="searchico">⌕</span><input id="search" placeholder="例如：去重、拆列、统计"></div>
@@ -213,7 +221,7 @@ $$('.mode-tab').forEach(b=>b.onclick=()=>{
 });
 
 /* ---------- FILE MODE ---------- */
-let wb=null, original=[], current=[], headers=[], history=[], activeAction=null, baseName='';
+let wb=null, original=[], current=[], headers=[], history=[], activeAction=null, baseName='', currentFile=null;
 
 const ACTIONS={
  dedupe:{name:'按字段去重',desc:'选择一列作为唯一标识，只保留第一条记录。'},
@@ -234,10 +242,24 @@ const drop=$('#drop');
 ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag')}));
 drop.addEventListener('drop',e=>e.dataTransfer.files[0]&&loadFile(e.dataTransfer.files[0]));
 
-function readWB(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>{try{res(XLSX.read(new Uint8Array(e.target.result),{type:'array'}))}catch(err){rej(err)}};r.onerror=rej;r.readAsArrayBuffer(file)})}
+function decodeCsvBuffer(buffer, encoding='auto'){
+ const bytes=new Uint8Array(buffer);let start=0;
+ if(bytes.length>=3&&bytes[0]===0xEF&&bytes[1]===0xBB&&bytes[2]===0xBF)start=3;
+ const data=bytes.slice(start);
+ const dec=(enc,fatal=false)=>{try{return new TextDecoder(enc,{fatal}).decode(data)}catch(e){return null}};
+ if(encoding==='utf-8')return dec('utf-8')||'';
+ if(encoding==='gb18030')return dec('gb18030')||'';
+ const utf8=dec('utf-8',true);if(utf8!==null)return utf8;
+ return dec('gb18030')||dec('utf-8')||'';
+}
+function readWB(file,forcedEncoding='auto'){return new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>{try{if(/\.csv$/i.test(file.name)){const csv=decodeCsvBuffer(e.target.result,forcedEncoding);res(XLSX.read(csv,{type:'string',raw:false}))}else{res(XLSX.read(new Uint8Array(e.target.result),{type:'array'}))}}catch(err){rej(err)}};r.onerror=rej;r.readAsArrayBuffer(file)})}
 async function loadFile(file){
  try{
-  wb=await readWB(file);baseName=file.name.replace(/\.[^.]+$/,'');
+  currentFile=file;
+  const isCsv=/\.csv$/i.test(file.name);
+  const encSel=document.getElementById('csvEncoding');
+  document.getElementById('encodingWrap').style.display=isCsv?'flex':'none';
+  wb=await readWB(file,isCsv?(encSel?.value||'auto'):'auto');baseName=file.name.replace(/\.[^.]+$/,'');
   original=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:'',raw:false});
   current=JSON.parse(JSON.stringify(original));headers=current.length?Object.keys(current[0]):[];history=[];
   $('#filebar').classList.add('show');$('#fname').textContent=file.name;$('#fmeta').textContent=`${(file.size/1024/1024).toFixed(2)} MB · ${current.length.toLocaleString()} 行`;
@@ -374,6 +396,9 @@ $('#xlsx').onclick=()=>downloadXLSX(current,(baseName||'粘一下')+'_处理结�
 $('#csv').onclick=()=>downloadCSV(current,(baseName||'粘一下')+'_处理结果.csv');
 function downloadXLSX(rows,name){if(!rows.length)return;const ws=XLSX.utils.json_to_sheet(rows),w=XLSX.utils.book_new();XLSX.utils.book_append_sheet(w,ws,'处理结果');XLSX.writeFile(w,name)}
 function downloadCSV(rows,name){if(!rows.length)return;const ws=XLSX.utils.json_to_sheet(rows),csv='\ufeff'+XLSX.utils.sheet_to_csv(ws),blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u)}
+const csvEncodingEl=document.getElementById('csvEncoding');
+if(csvEncodingEl){csvEncodingEl.addEventListener('change',()=>{if(currentFile&&/\.csv$/i.test(currentFile.name))loadFile(currentFile)})}
+
 $('#search').oninput=e=>{const q=e.target.value.trim();if(!q){$('#searchResults').classList.remove('show');return}const candidates=[];for(const [k,v] of Object.entries(SEARCH_ALIASES))if(k.includes(q)||q.includes(k))candidates.push(v);for(const [id,m] of Object.entries(ACTIONS))if(m.name.includes(q)||m.desc.includes(q))candidates.push(id);const uniq=[...new Set(candidates)];$('#searchResults').innerHTML=uniq.length?uniq.map(id=>`<div class="search-item" data-searchact="${id}"><b>${ACTIONS[id].name}</b><span>${ACTIONS[id].desc}</span></div>`).join(''):'<div class="search-item"><b>没找到完全匹配</b><span>试试“去重 / 拆列 / 统计 / 替换 / 检查”</span></div>';$('#searchResults').classList.add('show');$$('[data-searchact]').forEach(x=>x.onclick=()=>{openAction(x.dataset.searchact);$('#searchResults').classList.remove('show')})};
 
 /* ---------- TEXT MODE ---------- */

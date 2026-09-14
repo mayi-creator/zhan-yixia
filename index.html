@@ -3,441 +3,449 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>粘一下 · 运营数据工作台 v8</title>
+<title>粘一下 · 万能数据工作台 v10</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root{
   --bg:#f6f7fb;--card:#fff;--text:#101828;--text2:#344054;--muted:#667085;--line:#e6e8ee;
-  --p:#635bff;--p2:#3874ff;--soft:#f6f7fa;--green:#12a150;--red:#d92d20;--amber:#d97706;
-  --shadow:0 16px 46px rgba(16,24,40,.07);--shadow2:0 7px 20px rgba(16,24,40,.05);
+  --p:#635bff;--p2:#3874ff;--soft:#f6f7fa;--green:#12a150;--red:#d92d20;
+  --shadow:0 16px 46px rgba(16,24,40,.07);--shadow2:0 7px 20px rgba(16,24,40,.05)
 }
-*{box-sizing:border-box} html,body{margin:0}
+*{box-sizing:border-box}html,body{margin:0}
 body{
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
-  color:var(--text);background:
-  radial-gradient(circle at 0 0,rgba(99,91,255,.07),transparent 23%),
-  radial-gradient(circle at 100% 0,rgba(56,116,255,.05),transparent 21%),
-  var(--bg);
+  color:var(--text);background:radial-gradient(circle at 0 0,rgba(99,91,255,.07),transparent 23%),radial-gradient(circle at 100% 0,rgba(56,116,255,.05),transparent 21%),var(--bg)
 }
-button,input,select,textarea{font:inherit}
-button{cursor:pointer}
-.app{max-width:1480px;margin:auto;padding:22px 20px 54px}
+button,input,select,textarea{font:inherit}button{cursor:pointer}
+.app{max-width:1500px;margin:auto;padding:22px 20px 54px}
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px}
-.brand{display:flex;align-items:center;gap:12px}
-.logo{width:45px;height:45px;border-radius:15px;display:grid;place-items:center;color:#fff;font-weight:900;
-background:linear-gradient(135deg,var(--p),var(--p2));box-shadow:0 10px 28px rgba(99,91,255,.22)}
+.brand{display:flex;align-items:center;gap:12px}.logo{width:45px;height:45px;border-radius:15px;display:grid;place-items:center;color:#fff;font-weight:900;background:linear-gradient(135deg,var(--p),var(--p2));box-shadow:0 10px 28px rgba(99,91,255,.22)}
 .brand h1{margin:0;font-size:21px}.brand p{margin:3px 0 0;font-size:12px;color:var(--muted)}
-.toplinks{display:flex;gap:10px;align-items:center}.linkbtn{border:0;background:transparent;color:var(--muted);font-size:12px}
-.hero{background:rgba(255,255,255,.88);border:1px solid rgba(255,255,255,.95);border-radius:27px;padding:25px 27px;box-shadow:var(--shadow);margin-bottom:15px}
-.hero h2{margin:0;font-size:32px;letter-spacing:-.035em}.hero p{margin:8px 0 0;color:var(--text2);font-size:13px;line-height:1.7}
-.quick{display:flex;gap:8px;flex-wrap:wrap;margin-top:17px}
-.qchip{border:1px solid var(--line);background:#fff;padding:8px 12px;border-radius:999px;font-size:12px;color:var(--text2);box-shadow:var(--shadow2)}
-.main{display:grid;grid-template-columns:260px 1fr;gap:15px}
-.nav{background:#fff;border:1px solid var(--line);border-radius:23px;padding:12px;box-shadow:var(--shadow);align-self:start;position:sticky;top:14px}
-.navlabel{font-size:10px;letter-spacing:.1em;color:#98a2b3;margin:8px 9px}
-.navitem{width:100%;border:0;background:transparent;border-radius:14px;padding:11px 12px;text-align:left;display:flex;gap:11px;align-items:center;color:var(--text2);margin-bottom:3px}
-.navitem:hover{background:#f8f9fc}.navitem.active{background:#f1f0ff;color:var(--p);font-weight:750}
-.navico{width:28px;height:28px;border-radius:9px;background:#f5f6f8;display:grid;place-items:center;font-size:14px}.navitem.active .navico{background:#e7e4ff}
-.content{min-width:0}.page{display:none}.page.active{display:block}
-.section-title{margin:3px 0 12px;display:flex;justify-content:space-between;align-items:end;gap:10px}
-.section-title h3{margin:0;font-size:18px}.section-title p{margin:4px 0 0;font-size:11px;color:var(--muted)}
-.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px}
-.taskcard{background:#fff;border:1px solid var(--line);border-radius:20px;padding:16px;box-shadow:var(--shadow2);cursor:pointer;transition:.15s}
-.taskcard:hover{transform:translateY(-1px);border-color:#d7d9e2}.taskcard.active{border-color:#a69fff;box-shadow:0 0 0 3px rgba(99,91,255,.07)}
-.taskico{font-size:22px}.taskcard b{display:block;font-size:13px;margin:10px 0 4px}.taskcard p{margin:0;font-size:11px;color:var(--muted);line-height:1.55}
-.workspace{background:#fff;border:1px solid var(--line);border-radius:23px;box-shadow:var(--shadow);overflow:hidden}
-.whead{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px}
-.whead b{font-size:14px}.whead span{font-size:11px;color:var(--muted)}
-.body{padding:16px}.drop{
-  border:1.5px dashed #ccd2dc;border-radius:18px;background:#fafbfc;min-height:130px;
-  display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:17px
-}
-.drop.drag{border-color:var(--p);background:#f6f4ff}.drop .big{font-size:27px}.drop b{font-size:13px;margin-top:7px}.drop p{font-size:10px;color:var(--muted);margin:4px 0 10px}
-.btn{border:1px solid var(--line);background:#fff;border-radius:11px;padding:8px 12px;font-size:12px;font-weight:650}
-.btn.primary{background:linear-gradient(135deg,var(--p),var(--p2));color:#fff;border-color:transparent}.btn.soft{background:var(--soft)}
-.btn.danger{color:var(--red)}.btn:disabled{opacity:.45;cursor:not-allowed}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-.field{display:flex;flex-direction:column;gap:5px}.field label{font-size:10px;color:var(--muted)}
-select,input{width:100%;border:1px solid var(--line);border-radius:11px;padding:9px 10px;outline:0;background:#fff;color:var(--text)}
-select:focus,input:focus{border-color:#b0aaff;box-shadow:0 0 0 3px rgba(99,91,255,.08)}
-.filebar{display:none;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:14px;margin-top:10px;background:#fff}.filebar.show{display:flex}.filebar .fi{flex:1}.filebar b{font-size:11px;display:block}.filebar span{font-size:10px;color:var(--muted)}
-.config{margin-top:13px;display:none}.config.show{display:block}
-.runbar{display:flex;justify-content:flex-end;gap:8px;margin-top:13px}
-.result{margin-top:14px;border:1px solid var(--line);border-radius:17px;overflow:hidden}
-.rhead{padding:11px 13px;background:#fafbfc;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
-.rhead b{font-size:11px}.stats{display:flex;gap:6px;flex-wrap:wrap}.stat{font-size:10px;color:var(--muted);border:1px solid var(--line);background:#fff;border-radius:999px;padding:5px 8px}
-.tablewrap{overflow:auto;max-height:430px}table{border-collapse:collapse;width:max-content;min-width:100%;font-size:11px}
-th{position:sticky;top:0;background:#f6f7fa;text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
-td{padding:8px 10px;border-bottom:1px solid #f0f1f4;white-space:nowrap;max-width:300px;overflow:hidden;text-overflow:ellipsis}
-.resultfoot{padding:10px 12px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;align-items:center}.hint{font-size:10px;color:var(--muted)}.actions{display:flex;gap:7px}
-.empty{padding:55px;text-align:center;color:var(--muted);font-size:11px}
-.profile{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:13px}.pcard{border:1px solid var(--line);border-radius:15px;padding:13px;background:#fff}.pcard span{font-size:10px;color:var(--muted)}.pcard b{display:block;font-size:20px;margin-top:5px}
-.issues{display:grid;gap:8px}.issue{display:flex;justify-content:space-between;gap:10px;border:1px solid var(--line);border-radius:14px;padding:11px 12px}.issue b{font-size:11px}.issue span{font-size:10px;color:var(--muted)}.badge{border-radius:999px;padding:5px 8px;font-size:10px}.bad{background:#fff1f0;color:var(--red)}.warn{background:#fff8eb;color:var(--amber)}.good{background:#eefbf3;color:var(--green)}
-.textarea{width:100%;min-height:260px;resize:vertical;border:1px solid var(--line);border-radius:14px;padding:13px;outline:0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.6}
-@media(max-width:1100px){.main{grid-template-columns:1fr}.nav{position:static;display:flex;overflow:auto}.navlabel{display:none}.navitem{width:auto;white-space:nowrap}.cards{grid-template-columns:1fr 1fr}}
-@media(max-width:700px){.app{padding:12px 9px 35px}.hero{padding:20px}.hero h2{font-size:27px}.cards,.grid2,.grid3,.profile{grid-template-columns:1fr}.nav{gap:3px}}
+.hero{background:rgba(255,255,255,.9);border:1px solid rgba(255,255,255,.95);border-radius:27px;padding:22px 25px;box-shadow:var(--shadow);margin-bottom:14px}
+.hero h2{margin:0;font-size:29px;letter-spacing:-.035em}.hero p{margin:7px 0 0;color:var(--text2);font-size:13px;line-height:1.65}
+.mode-tabs{display:flex;gap:8px;margin-top:16px}.mode-tab{border:1px solid var(--line);background:#fff;border-radius:999px;padding:9px 15px;font-size:12px;font-weight:750;color:var(--text2)}
+.mode-tab.active{background:linear-gradient(135deg,var(--p),var(--p2));border-color:transparent;color:#fff}
+.mode{display:none}.mode.active{display:block}
+
+/* shared */
+.btn{border:1px solid var(--line);background:#fff;border-radius:11px;padding:8px 12px;font-size:12px;font-weight:650}.btn.primary{background:linear-gradient(135deg,var(--p),var(--p2));color:#fff;border-color:transparent}.btn.soft{background:var(--soft)}
+input,select{width:100%;border:1px solid var(--line);border-radius:11px;padding:9px 10px;outline:0;background:#fff;color:var(--text)}
+input:focus,select:focus,textarea:focus{border-color:#b0aaff;box-shadow:0 0 0 3px rgba(99,91,255,.08)}
+.field{display:flex;flex-direction:column;gap:5px}.field label{font-size:10px;color:var(--muted)}.actions{display:flex;gap:7px;flex-wrap:wrap}
+
+/* file mode */
+.file-shell{display:grid;grid-template-columns:300px 1fr 280px;gap:15px}
+.side,.file-main,.pipeline,.text-panel,.text-center{background:#fff;border:1px solid var(--line);border-radius:23px;box-shadow:var(--shadow)}
+.side,.pipeline{align-self:start;position:sticky;top:14px}.side{padding:14px}.pipeline{padding:14px}.file-main{overflow:hidden;min-width:0}
+.sec-title{font-size:10px;letter-spacing:.1em;color:#98a2b3;margin:5px 6px 9px}
+.upload{border:1.5px dashed #ccd2dc;border-radius:18px;background:#fafbfc;min-height:130px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:16px}
+.upload.drag{border-color:var(--p);background:#f6f4ff}.upload .big{font-size:28px}.upload b{font-size:13px;margin-top:7px}.upload p{font-size:10px;color:var(--muted);margin:4px 0 10px}
+.filebar{display:none;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:14px;margin-top:10px;background:#fff}.filebar.show{display:flex}.filebar .fi{flex:1;min-width:0}.filebar b{font-size:11px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.filebar span{font-size:10px;color:var(--muted)}
+.searchbox{position:relative;margin-top:13px}.searchbox input{padding-left:34px}.searchico{position:absolute;left:11px;top:9px;color:#98a2b3;font-size:14px}
+.quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.file-action{border:1px solid var(--line);background:#fff;border-radius:14px;padding:10px;text-align:left;min-height:68px}.file-action:hover{border-color:#cfc7ff;background:#fbfaff}.file-action b{font-size:11px;display:block}.file-action small{font-size:9px;color:var(--muted);display:block;margin-top:3px;line-height:1.4}
+.search-results{display:none;margin-top:8px;border:1px solid var(--line);border-radius:14px;background:#fff;overflow:hidden}.search-results.show{display:block}.search-item{padding:10px 11px;border-bottom:1px solid var(--line);cursor:pointer}.search-item:last-child{border-bottom:0}.search-item:hover{background:#f8f8fc}.search-item b{font-size:11px}.search-item span{font-size:9px;color:var(--muted);display:block;margin-top:2px}
+.mainhead{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;align-items:center}.mainhead b{font-size:14px}.mainhead span{font-size:10px;color:var(--muted)}.metrics{display:flex;gap:6px;flex-wrap:wrap}.metric{font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:5px 8px;background:#fff}
+.config{padding:13px 16px;border-bottom:1px solid var(--line);background:#fbfcfe;display:none}.config.show{display:block}.cfg-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.runbar{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+.empty{min-height:540px;display:grid;place-items:center;text-align:center;color:var(--muted)}.empty .big{font-size:48px}.empty b{display:block;color:var(--text2);margin-top:7px;font-size:13px}.empty p{font-size:10px;margin:4px 0 0}
+.tablewrap{overflow:auto;max-height:600px}table{border-collapse:collapse;width:max-content;min-width:100%;font-size:11px}th{position:sticky;top:0;background:#f6f7fa;text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap;z-index:1}td{padding:8px 10px;border-bottom:1px solid #f0f1f4;white-space:nowrap;max-width:300px;overflow:hidden;text-overflow:ellipsis}
+.footer{padding:10px 14px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;align-items:center}.hint{font-size:10px;color:var(--muted)}
+.pipeline-list{display:grid;gap:8px}.step{border:1px solid var(--line);border-radius:13px;padding:10px;background:#fff}.step b{font-size:10px;display:block}.step span{font-size:9px;color:var(--muted);display:block;margin-top:3px}.step.current{border-color:#c9c4ff;background:#faf9ff}.empty-pipe{font-size:10px;color:var(--muted);line-height:1.55;padding:8px 4px}.undo{width:100%;margin-top:10px}
+
+/* text mode */
+.text-shell{display:grid;grid-template-columns:1fr 360px 1fr;gap:15px}.text-panel{min-height:650px;display:flex;flex-direction:column;overflow:hidden}.text-center{padding:14px;align-self:start;position:sticky;top:14px}
+.text-head{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:12px}.text-head b{font-size:14px}.text-head span{font-size:10px;color:var(--muted)}
+.textarea{width:100%;flex:1;resize:none;border:0;outline:0;padding:18px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:1.7;color:var(--text)}
+.text-foot{padding:11px 14px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;align-items:center}
+.text-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}.text-tab{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 10px;font-size:10px;font-weight:700;color:var(--text2)}.text-tab.active{background:#f0efff;border-color:#cfc9ff;color:var(--p)}
+.tool-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.tool{border:1px solid var(--line);background:#fff;border-radius:14px;padding:10px;text-align:left;min-height:72px}.tool:hover{border-color:#cfc7ff;background:#fbfaff}.tool b{font-size:11px;display:block}.tool small{font-size:9px;color:var(--muted);display:block;margin-top:3px;line-height:1.45}
+.text-config{display:none;margin-top:10px;border:1px solid var(--line);border-radius:15px;background:#fafbfc;padding:11px}.text-config.show{display:block}.text-config h4{font-size:11px;margin:0 0 8px}.text-config .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.success{font-size:10px;color:var(--green);opacity:0}.success.show{opacity:1}
+
+@media(max-width:1150px){.file-shell{grid-template-columns:260px 1fr}.pipeline{grid-column:1/-1;position:static}.pipeline-list{grid-template-columns:repeat(4,1fr)}.text-shell{grid-template-columns:1fr}.text-center{position:static}}
+@media(max-width:850px){.file-shell{grid-template-columns:1fr}.side{position:static}.quick-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:650px){.app{padding:12px 9px 35px}.hero{padding:19px}.hero h2{font-size:25px}.quick-grid,.cfg-grid,.tool-grid,.text-config .grid{grid-template-columns:1fr 1fr}.pipeline-list{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
 <div class="app">
   <div class="topbar">
-    <div class="brand"><div class="logo">粘</div><div><h1>粘一下</h1><p>运营 / 选品数据工作台</p></div></div>
-    <div class="toplinks"><button class="linkbtn" data-go="quick">快捷文本工具</button></div>
+    <div class="brand"><div class="logo">粘</div><div><h1>粘一下</h1><p>万能文件 & 文本数据处理工作台</p></div></div>
   </div>
 
   <section class="hero">
-    <h2>把表格里的麻烦事，变成几个按钮。</h2>
-    <p>清洗、匹配、统计、商品规格、1688 链接和数据检查，都放在一个工作台里。</p>
-    <div class="quick">
-      <button class="qchip" data-go="clean">去重 / 筛选</button>
-      <button class="qchip" data-go="match">两文件补字段</button>
-      <button class="qchip" data-go="agg">分组统计</button>
-      <button class="qchip" data-go="product">SKU 规格解析</button>
-      <button class="qchip" data-go="quality">数据体检</button>
+    <h2>小数据直接粘，大数据直接传。</h2>
+    <p>临时名单、链接、SQL 用文本处理；Excel / CSV 用文件处理。文件模式还支持多个文件合并到同一个 Excel 的不同 Sheet。</p>
+    <div class="mode-tabs">
+      <button class="mode-tab active" data-mode="fileMode">📄 文件处理</button>
+      <button class="mode-tab" data-mode="textMode">⌨️ 文本处理</button>
     </div>
   </section>
 
-  <div class="main">
-    <aside class="nav">
-      <div class="navlabel">工作台</div>
-      <button class="navitem active" data-go="clean"><span class="navico">✦</span>数据整理</button>
-      <button class="navitem" data-go="match"><span class="navico">⇄</span>文件匹配</button>
-      <button class="navitem" data-go="agg"><span class="navico">Σ</span>聚合统计</button>
-      <button class="navitem" data-go="product"><span class="navico">SKU</span>商品数据</button>
-      <button class="navitem" data-go="ali"><span class="navico">1688</span>1688 工具</button>
-      <button class="navitem" data-go="quality"><span class="navico">✓</span>数据检查</button>
-      <div class="navlabel">其他</div>
-      <button class="navitem" data-go="quick"><span class="navico">{ }</span>快捷文本</button>
-    </aside>
+  <!-- FILE MODE -->
+  <section id="fileMode" class="mode active">
+    <div class="file-shell">
+      <aside class="side">
+        <div class="sec-title">文件</div>
+        <div class="upload" id="drop">
+          <div class="big">📄</div><b>拖入 Excel / CSV</b><p>也可以点击按钮选择文件</p>
+          <button class="btn primary" onclick="document.getElementById('file').click()">选择文件</button>
+          <input id="file" type="file" accept=".xlsx,.xls,.csv" hidden>
+        </div>
+        <div class="filebar" id="filebar"><div class="fi"><b id="fname"></b><span id="fmeta"></span></div><button class="btn soft" onclick="document.getElementById('file').click()">换文件</button></div>
 
-    <main class="content">
-      <!-- 数据整理 -->
-      <section class="page active" id="page-clean">
-        <div class="section-title"><div><h3>数据整理</h3><p>不打开 Excel 公式，也能完成常见清洗。</p></div></div>
-        <div class="cards">
-          <div class="taskcard active" data-clean="dedupe"><div class="taskico">≠</div><b>按字段去重</b><p>选择一列作为唯一标识，只保留第一条。</p></div>
-          <div class="taskcard" data-clean="filter"><div class="taskico">⌕</div><b>条件筛选</b><p>包含、等于、为空、非空、数字大小。</p></div>
-          <div class="taskcard" data-clean="columns"><div class="taskico">▥</div><b>字段选择</b><p>只保留需要的列，快速瘦身文件。</p></div>
+        <div class="sec-title" style="margin-top:15px">你想做什么？</div>
+        <div class="searchbox"><span class="searchico">⌕</span><input id="search" placeholder="例如：去重、拆列、统计"></div>
+        <div class="search-results" id="searchResults"></div>
+        <div class="quick-grid">
+          <button class="file-action" data-act="dedupe"><b>≠ 去重</b><small>按字段保留唯一行</small></button>
+          <button class="file-action" data-act="filter"><b>⌕ 筛选</b><small>包含 / 等于 / 数字条件</small></button>
+          <button class="file-action" data-act="keepcols"><b>▥ 保留字段</b><small>只留下需要的列</small></button>
+          <button class="file-action" data-act="splitcol"><b>⇥ 拆列</b><small>按分隔符拆成多列</small></button>
+          <button class="file-action" data-act="mergecols"><b>⇤ 合并列</b><small>多列拼成一列</small></button>
+          <button class="file-action" data-act="group"><b>Σ 分组统计</b><small>计数 / 去重 / 求和</small></button>
+          <button class="file-action" data-act="replace"><b>↺ 批量替换</b><small>一列里查找并替换</small></button>
+          <button class="file-action" data-act="quality"><b>✓ 数据检查</b><small>空值 / 重复 / 异常</small></button>
+          <button class="file-action" data-act="mergefiles"><b>🗂 多文件合并</b><small>合到一个 Excel 的不同 Sheet</small></button>
         </div>
-        <div class="workspace">
-          <div class="whead"><div><b id="cleanTitle">按字段去重</b><br><span>上传 Excel / CSV 后选择字段。</span></div></div>
-          <div class="body">
-            <div class="drop" id="dropClean"><div class="big">📄</div><b>拖入 Excel / CSV</b><p>也可以点击按钮选择文件</p><button class="btn primary" onclick="pick('fileClean')">选择文件</button><input id="fileClean" type="file" accept=".xlsx,.xls,.csv" hidden></div>
-            <div class="filebar" id="barClean"><div class="fi"><b id="nameClean"></b><span id="metaClean"></span></div><button class="btn soft" onclick="pick('fileClean')">换文件</button></div>
-            <div class="config" id="cfgClean">
-              <div class="grid3">
-                <div class="field"><label>Sheet</label><select id="sheetClean"></select></div>
-                <div class="field"><label>处理字段</label><select id="colClean"></select></div>
-                <div class="field" id="filterWrap" style="display:none"><label>条件</label><select id="filterMode"><option value="contains">包含</option><option value="equals">等于</option><option value="notempty">非空</option><option value="empty">为空</option><option value="gt">数字大于</option><option value="lt">数字小于</option></select></div>
-              </div>
-              <div class="field" id="filterValWrap" style="display:none;margin-top:9px"><label>筛选值</label><input id="filterValue" placeholder="输入筛选值"></div>
-              <div class="field" id="keepColsWrap" style="display:none;margin-top:9px"><label>保留字段（按住 Ctrl/Cmd 可多选）</label><select id="keepCols" multiple style="min-height:130px"></select></div>
-              <div class="runbar"><button class="btn primary" id="runClean">开始处理</button></div>
-            </div>
-            <div id="resClean"></div>
-          </div>
+      </aside>
+
+      <main class="file-main">
+        <div class="mainhead">
+          <div><b id="title">文件预览</b><br><span id="subtitle">上传文件后，在这里开始连续处理。</span></div>
+          <div class="metrics"><span class="metric" id="mrows">0 行</span><span class="metric" id="mcols">0 列</span><span class="metric" id="mstate">未处理</span></div>
         </div>
+        <div class="config" id="config"><div class="cfg-grid" id="cfgGrid"></div><div class="runbar"><button class="btn soft" id="cancelCfg">取消</button><button class="btn primary" id="apply">应用这一步</button></div></div>
+        <div id="tableArea"><div class="empty"><div><div class="big">📊</div><b>先上传一份 Excel 或 CSV</b><p>上传后可以连续处理，不需要每一步都重新下载。</p></div></div></div>
+        <div class="footer" id="footer" style="display:none"><span class="hint" id="hint">—</span><div class="actions"><button class="btn" id="reset">恢复原始数据</button><button class="btn soft" id="csv">下载 CSV</button><button class="btn primary" id="xlsx">下载 Excel</button></div></div>
+      </main>
+
+      <aside class="pipeline">
+        <div class="sec-title">本次处理</div>
+        <div class="pipeline-list" id="pipeline"><div class="empty-pipe">你做的每一步都会记录在这里。<br>可以随时撤销上一步。</div></div>
+        <button class="btn soft undo" id="undo" disabled>↶ 撤销上一步</button>
+      </aside>
+    </div>
+  </section>
+
+  <!-- TEXT MODE -->
+  <section id="textMode" class="mode">
+    <div class="text-shell">
+      <section class="text-panel">
+        <div class="text-head"><div><b>原始内容</b><br><span>名单、链接、ID、标题、SKU 描述都可以直接粘</span></div><span id="tinCount">0 行 · 0 字符</span></div>
+        <textarea id="tin" class="textarea" placeholder="把内容粘在这里…
+
+例如：
+10001
+10002
+10002
+https://detail.1688.com/offer/123456789012.html"></textarea>
+        <div class="text-foot"><div class="actions"><button class="btn" id="sampleText">放个示例</button><button class="btn" id="clearText">清空</button></div></div>
       </section>
 
-      <!-- 文件匹配 -->
-      <section class="page" id="page-match">
-        <div class="section-title"><div><h3>文件匹配</h3><p>把 VLOOKUP / XLOOKUP 变成选择题。</p></div></div>
-        <div class="cards">
-          <div class="taskcard active"><div class="taskico">＋</div><b>给 A 文件补字段</b><p>按 Key 匹配 B 文件，并勾选要补回 A 的字段。</p></div>
-          <div class="taskcard"><div class="taskico">∩</div><b>交集 / 差集</b><p>快速找只在 A、只在 B、两边都有。</p></div>
-          <div class="taskcard"><div class="taskico">⚠</div><b>未匹配数据</b><p>单独找出匹配不到的 Key。</p></div>
+      <aside class="text-center">
+        <div class="text-tabs">
+          <button class="text-tab active" data-tcat="basic">基础</button>
+          <button class="text-tab" data-tcat="format">格式</button>
+          <button class="text-tab" data-tcat="extract">提取</button>
+          <button class="text-tab" data-tcat="product">商品</button>
         </div>
-        <div class="workspace">
-          <div class="whead"><div><b>给 A 文件补 B 的字段</b><br><span>例如：A 里只有 SPU，B 里有 SPU + 供应商 + 类目。</span></div></div>
-          <div class="body">
-            <div class="grid2">
-              <div>
-                <div class="drop"><div class="big">A</div><b>主文件</b><p>最终结果以 A 文件为基础</p><button class="btn primary" onclick="pick('fileMatchA')">上传 A</button><input id="fileMatchA" type="file" accept=".xlsx,.xls,.csv" hidden></div>
-                <div class="filebar" id="barMatchA"><div class="fi"><b id="nameMatchA"></b><span id="metaMatchA"></span></div></div>
-              </div>
-              <div>
-                <div class="drop"><div class="big">B</div><b>补充文件</b><p>从 B 文件补字段到 A</p><button class="btn primary" onclick="pick('fileMatchB')">上传 B</button><input id="fileMatchB" type="file" accept=".xlsx,.xls,.csv" hidden></div>
-                <div class="filebar" id="barMatchB"><div class="fi"><b id="nameMatchB"></b><span id="metaMatchB"></span></div></div>
-              </div>
-            </div>
-            <div class="config" id="cfgMatch">
-              <div class="grid2">
-                <div class="field"><label>A 匹配字段</label><select id="keyA"></select></div>
-                <div class="field"><label>B 匹配字段</label><select id="keyB"></select></div>
-              </div>
-              <div class="field" style="margin-top:10px"><label>从 B 补回的字段（可多选）</label><select id="addCols" multiple style="min-height:135px"></select></div>
-              <div class="runbar"><button class="btn primary" id="runMatch">开始匹配</button></div>
-            </div>
-            <div id="resMatch"></div>
-          </div>
-        </div>
-      </section>
 
-      <!-- 聚合 -->
-      <section class="page" id="page-agg">
-        <div class="section-title"><div><h3>聚合统计</h3><p>把简单 SQL / 数据透视表变成表单。</p></div></div>
-        <div class="cards">
-          <div class="taskcard active"><div class="taskico">#</div><b>分组计数</b><p>按供应商 / 类目 / 选品人统计行数。</p></div>
-          <div class="taskcard"><div class="taskico">≠</div><b>去重计数</b><p>例如按类目统计去重 SPU 数。</p></div>
-          <div class="taskcard"><div class="taskico">Σ</div><b>求和 / 平均值</b><p>例如按供应商汇总销售额。</p></div>
+        <div id="tools-basic" class="tool-grid">
+          <button class="tool" data-top="dedupe"><b>≠ 去重</b><small>按行去重</small></button>
+          <button class="tool" data-top="blank"><b>⌫ 去空行</b><small>删除空白行</small></button>
+          <button class="tool" data-top="trim"><b>↔ 去首尾空格</b><small>清理每行空格</small></button>
+          <button class="tool" data-top="sort"><b>↕ 排序</b><small>按行排序</small></button>
+          <button class="tool" data-top="prefix"><b>± 前后缀</b><small>每行统一添加</small></button>
+          <button class="tool" data-top="replace"><b>↺ 批量替换</b><small>查找并替换</small></button>
         </div>
-        <div class="workspace">
-          <div class="whead"><div><b>分组统计</b><br><span>上传文件后选择分组字段和统计方式。</span></div></div>
-          <div class="body">
-            <div class="drop"><div class="big">Σ</div><b>上传 Excel / CSV</b><p>适合订单、商品、供应商明细</p><button class="btn primary" onclick="pick('fileAgg')">选择文件</button><input id="fileAgg" type="file" accept=".xlsx,.xls,.csv" hidden></div>
-            <div class="filebar" id="barAgg"><div class="fi"><b id="nameAgg"></b><span id="metaAgg"></span></div></div>
-            <div class="config" id="cfgAgg">
-              <div class="grid3">
-                <div class="field"><label>分组字段</label><select id="groupCol"></select></div>
-                <div class="field"><label>统计方式</label><select id="aggMode"><option value="count">行数</option><option value="distinct">去重计数</option><option value="sum">求和</option><option value="avg">平均值</option></select></div>
-                <div class="field"><label>统计字段</label><select id="metricCol"></select></div>
-              </div>
-              <div class="runbar"><button class="btn primary" id="runAgg">开始统计</button></div>
-            </div>
-            <div id="resAgg"></div>
-          </div>
-        </div>
-      </section>
 
-      <!-- 商品 -->
-      <section class="page" id="page-product">
-        <div class="section-title"><div><h3>商品数据</h3><p>针对选品 / SKU 规格的专属处理。</p></div></div>
-        <div class="cards">
-          <div class="taskcard active"><div class="taskico">↔</div><b>SKU 规格解析</b><p>从描述中识别尺寸、重量、颜色、尺码。</p></div>
-          <div class="taskcard"><div class="taskico">⚠</div><b>大件筛查</b><p>任意一边超过阈值时直接筛出原始行。</p></div>
-          <div class="taskcard"><div class="taskico">0</div><b>异常规格</b><p>找尺寸为 0、重量缺失等异常记录。</p></div>
+        <div id="tools-format" class="tool-grid" style="display:none">
+          <button class="tool" data-top="quotes"><b>“ ” 每行加引号</b><small>常用于 SQL</small></button>
+          <button class="tool" data-top="comma"><b>, 逗号连接</b><small>多行变一行</small></button>
+          <button class="tool" data-top="json"><b>{ } JSON 数组</b><small>多行转数组</small></button>
+          <button class="tool" data-top="sqlin"><b>SQL IN</b><small>生成 IN (...)</small></button>
+          <button class="tool" data-top="notin"><b>SQL NOT IN</b><small>生成 NOT IN (...)</small></button>
+          <button class="tool" data-top="wherein"><b>WHERE IN</b><small>带字段名生成</small></button>
         </div>
-        <div class="workspace">
-          <div class="whead"><div><b>SKU 规格解析</b><br><span>例：米色-XL-60×90cm-0.75kg</span></div></div>
-          <div class="body">
-            <div class="drop"><div class="big">SKU</div><b>上传商品数据文件</b><p>选择包含 SKU 描述 / 规格的字段</p><button class="btn primary" onclick="pick('fileProduct')">选择文件</button><input id="fileProduct" type="file" accept=".xlsx,.xls,.csv" hidden></div>
-            <div class="filebar" id="barProduct"><div class="fi"><b id="nameProduct"></b><span id="metaProduct"></span></div></div>
-            <div class="config" id="cfgProduct">
-              <div class="grid3">
-                <div class="field"><label>规格字段</label><select id="skuCol"></select></div>
-                <div class="field"><label>筛选方式</label><select id="skuMode"><option value="parse">仅解析</option><option value="large">任一边超过阈值</option><option value="invalid">规格异常</option></select></div>
-                <div class="field"><label>尺寸阈值（cm）</label><input id="sizeThreshold" type="number" value="60"></div>
-              </div>
-              <div class="runbar"><button class="btn primary" id="runProduct">开始处理</button></div>
-            </div>
-            <div id="resProduct"></div>
-          </div>
-        </div>
-      </section>
 
-      <!-- 1688 -->
-      <section class="page" id="page-ali">
-        <div class="section-title"><div><h3>1688 工具</h3><p>把混乱链接整理成可继续使用的数据。</p></div></div>
-        <div class="cards">
-          <div class="taskcard active"><div class="taskico">ID</div><b>商品 ID</b><p>从详情链接中提取 offer ID。</p></div>
-          <div class="taskcard"><div class="taskico">店</div><b>店铺主页</b><p>保留 https/http + 店铺域名。</p></div>
-          <div class="taskcard"><div class="taskico">⌁</div><b>链接清洗</b><p>去掉 query 参数和跟踪参数。</p></div>
+        <div id="tools-extract" class="tool-grid" style="display:none">
+          <button class="tool" data-top="numbers"><b>123 提取数字</b><small>整数 / 小数</small></button>
+          <button class="tool" data-top="urls"><b>↗ 提取链接</b><small>http / https</small></button>
+          <button class="tool" data-top="domain"><b>.com 提取域名</b><small>保留协议前缀</small></button>
+          <button class="tool" data-top="cleanurl"><b>⌁ 链接去参数</b><small>删除 query 参数</small></button>
+          <button class="tool" data-top="emails"><b>@ 提取邮箱</b><small>批量抓取邮箱</small></button>
+          <button class="tool" data-top="aliid"><b>1688 商品 ID</b><small>从链接 / 文本提取</small></button>
         </div>
-        <div class="workspace">
-          <div class="whead"><div><b>1688 链接批量解析</b><br><span>输出商品 ID、链接类型、店铺主页和干净链接。</span></div></div>
-          <div class="body">
-            <div class="drop"><div class="big">1688</div><b>上传含链接的文件</b><p>也支持一列混合文本</p><button class="btn primary" onclick="pick('fileAli')">选择文件</button><input id="fileAli" type="file" accept=".xlsx,.xls,.csv" hidden></div>
-            <div class="filebar" id="barAli"><div class="fi"><b id="nameAli"></b><span id="metaAli"></span></div></div>
-            <div class="config" id="cfgAli"><div class="field"><label>链接字段</label><select id="aliCol"></select></div><div class="runbar"><button class="btn primary" id="runAli">开始解析</button></div></div>
-            <div id="resAli"></div>
-          </div>
-        </div>
-      </section>
 
-      <!-- 数据检查 -->
-      <section class="page" id="page-quality">
-        <div class="section-title"><div><h3>数据检查</h3><p>先看这份文件到底脏在哪里。</p></div></div>
-        <div class="workspace">
-          <div class="whead"><div><b>一键数据体检</b><br><span>检查空值、重复行、重复主键和可疑 URL。</span></div></div>
-          <div class="body">
-            <div class="drop"><div class="big">✓</div><b>上传需要检查的文件</b><p>上传后自动生成基础体检报告</p><button class="btn primary" onclick="pick('fileQuality')">选择文件</button><input id="fileQuality" type="file" accept=".xlsx,.xls,.csv" hidden></div>
-            <div class="filebar" id="barQuality"><div class="fi"><b id="nameQuality"></b><span id="metaQuality"></span></div></div>
-            <div class="config" id="cfgQuality"><div class="field"><label>主键字段（用于检查重复 Key）</label><select id="qualityKey"></select></div><div class="runbar"><button class="btn primary" id="runQuality">开始体检</button></div></div>
-            <div id="qualityReport"></div>
-          </div>
+        <div id="tools-product" class="tool-grid" style="display:none">
+          <button class="tool" data-top="cleantitle"><b>✦ 清洗商品标题</b><small>去爆款 / 跨境等噪音词</small></button>
+          <button class="tool" data-top="dimensions"><b>cm 提取 SKU 尺寸</b><small>识别常见尺寸格式</small></button>
+          <button class="tool" data-top="over60"><b>⚠ 筛任一边 &gt; 60cm</b><small>只返回符合条件原始行</small></button>
+          <button class="tool" data-top="spec"><b>SKU 规格解析</b><small>颜色 / 尺码 / 尺寸 / 重量</small></button>
         </div>
-      </section>
 
-      <!-- 快捷文本 -->
-      <section class="page" id="page-quick">
-        <div class="section-title"><div><h3>快捷文本工具</h3><p>临时的一列 ID / 链接 / 名单，不用上传文件。</p></div></div>
-        <div class="workspace">
-          <div class="body">
-            <div class="grid2">
-              <div><div class="field"><label>原始内容</label><textarea class="textarea" id="quickIn" placeholder="把内容粘在这里…"></textarea></div></div>
-              <div><div class="field"><label>处理结果</label><textarea class="textarea" id="quickOut" placeholder="结果会出现在这里…"></textarea></div></div>
-            </div>
-            <div class="runbar" style="justify-content:space-between">
-              <div class="actions">
-                <button class="btn" data-q="dedupe">去重</button><button class="btn" data-q="sql">SQL IN</button><button class="btn" data-q="json">JSON</button><button class="btn" data-q="domain">提取域名</button><button class="btn" data-q="aliid">1688 ID</button>
-              </div>
-              <div class="actions"><button class="btn" id="quickContinue">← 继续处理</button><button class="btn primary" id="quickCopy">复制结果</button></div>
-            </div>
-          </div>
+        <div class="text-config" id="textCfg">
+          <h4 id="textCfgTitle">配置</h4>
+          <div class="grid" id="textCfgFields"></div>
+          <div class="runbar"><button class="btn soft" id="textCfgCancel">取消</button><button class="btn primary" id="textCfgApply">应用</button></div>
+        </div>
+      </aside>
+
+      <section class="text-panel">
+        <div class="text-head"><div><b>处理结果</b><br><span>可复制、下载，或继续作为下一步输入</span></div><span id="toutCount">0 行 · 0 字符</span></div>
+        <textarea id="tout" class="textarea" placeholder="处理结果会出现在这里…"></textarea>
+        <div class="text-foot">
+          <span class="success" id="copyOk">已复制</span>
+          <div class="actions"><button class="btn" id="downloadTxt">下载结果</button><button class="btn" id="continueText">← 继续处理</button><button class="btn primary" id="copyText">复制结果</button></div>
         </div>
       </section>
-    </main>
-  </div>
+    </div>
+  </section>
 </div>
 
 <script>
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const state={};
 
-function go(name){
-  $$('.page').forEach(x=>x.classList.remove('active'));
-  $('#page-'+name).classList.add('active');
-  $$('.navitem').forEach(x=>x.classList.toggle('active',x.dataset.go===name));
-  window.scrollTo({top:0,behavior:'smooth'});
-}
-$$('[data-go]').forEach(x=>x.onclick=()=>go(x.dataset.go));
+/* ---------- mode ---------- */
+$$('.mode-tab').forEach(b=>b.onclick=()=>{
+  $$('.mode-tab').forEach(x=>x.classList.remove('active')); b.classList.add('active');
+  $$('.mode').forEach(x=>x.classList.remove('active')); $('#'+b.dataset.mode).classList.add('active');
+});
 
-function pick(id){$('#'+id).click()}
-function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+/* ---------- FILE MODE ---------- */
+let wb=null, original=[], current=[], headers=[], history=[], activeAction=null, baseName='';
+
+const ACTIONS={
+ dedupe:{name:'按字段去重',desc:'选择一列作为唯一标识，只保留第一条记录。'},
+ filter:{name:'条件筛选',desc:'按字段做包含、等于、为空、数字大小筛选。'},
+ keepcols:{name:'保留字段',desc:'只保留选中的列，删除其他列。'},
+ splitcol:{name:'拆列',desc:'按分隔符把一列拆成多列。'},
+ mergecols:{name:'合并列',desc:'把多列拼接成一个新字段。'},
+ group:{name:'分组统计',desc:'按某列分组后计数、去重计数、求和或平均。'},
+ replace:{name:'批量替换',desc:'对某一列统一查找并替换内容。'},
+ quality:{name:'数据检查',desc:'检查空值、重复整行和重复主键。'},
+ mergefiles:{name:'多文件合并',desc:'一次选择多个 Excel / CSV，合并成一个新的 Excel。'}
+};
+const SEARCH_ALIASES={'去重':'dedupe','重复':'dedupe','筛选':'filter','过滤':'filter','保留字段':'keepcols','删除字段':'keepcols','拆列':'splitcol','分列':'splitcol','合并列':'mergecols','拼接列':'mergecols','统计':'group','聚合':'group','求和':'group','平均':'group','替换':'replace','检查':'quality','体检':'quality','空值':'quality','多文件':'mergefiles','合并文件':'mergefiles','文件合并':'mergefiles','不同sheet':'mergefiles','多个excel':'mergefiles'};
+
+$('#file').onchange=e=>e.target.files[0]&&loadFile(e.target.files[0]);
+const drop=$('#drop');
+['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('drag')}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag')}));
+drop.addEventListener('drop',e=>e.dataTransfer.files[0]&&loadFile(e.dataTransfer.files[0]));
+
 function readWB(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>{try{res(XLSX.read(new Uint8Array(e.target.result),{type:'array'}))}catch(err){rej(err)}};r.onerror=rej;r.readAsArrayBuffer(file)})}
-function firstRows(wb){const sh=wb.SheetNames[0];return XLSX.utils.sheet_to_json(wb.Sheets[sh],{defval:'',raw:false})}
-function fmtFile(file,rows){return `${(file.size/1024/1024).toFixed(2)} MB · ${rows.length.toLocaleString()} 行`}
-function fillSelect(sel,headers){sel.innerHTML=headers.map(h=>`<option value="${esc(h)}">${esc(h)}</option>`).join('')}
-function downloadXLSX(rows,name){
-  if(!rows.length)return;
-  const ws=XLSX.utils.json_to_sheet(rows), wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'处理结果');XLSX.writeFile(wb,name);
+async function loadFile(file){
+ try{
+  wb=await readWB(file);baseName=file.name.replace(/\.[^.]+$/,'');
+  original=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:'',raw:false});
+  current=JSON.parse(JSON.stringify(original));headers=current.length?Object.keys(current[0]):[];history=[];
+  $('#filebar').classList.add('show');$('#fname').textContent=file.name;$('#fmeta').textContent=`${(file.size/1024/1024).toFixed(2)} MB · ${current.length.toLocaleString()} 行`;
+  renderFile();renderPipeline();$('#footer').style.display='flex';$('#title').textContent='文件预览';$('#subtitle').textContent='现在可以连续处理，不需要重新上传。';
+ }catch(e){alert('文件读取失败，请确认文件格式。')}
 }
-function resultBox(el,rows,label='处理结果'){
-  if(!rows.length){el.innerHTML='<div class="result"><div class="empty">没有符合条件的数据</div></div>';return}
-  const hs=Object.keys(rows[0]), show=rows.slice(0,150);
-  el.innerHTML=`<div class="result"><div class="rhead"><b>${label}</b><div class="stats"><span class="stat">${rows.length.toLocaleString()} 行</span><span class="stat">${hs.length} 列</span></div></div>
-  <div class="tablewrap"><table><thead><tr>${hs.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${show.map(r=>`<tr>${hs.map(h=>`<td title="${esc(r[h]??'')}">${esc(r[h]??'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
-  <div class="resultfoot"><span class="hint">${rows.length>150?'页面预览前 150 行 · ':''}导出会包含全部结果</span><div class="actions"><button class="btn primary dlx">下载 Excel</button></div></div></div>`;
-  el.querySelector('.dlx').onclick=()=>downloadXLSX(rows,'粘一下_'+label+'.xlsx');
+function renderFile(){
+ $('#mrows').textContent=current.length.toLocaleString()+' 行';$('#mcols').textContent=(current.length?Object.keys(current[0]).length:0)+' 列';$('#mstate').textContent=history.length?`已处理 ${history.length} 步`:'原始数据';
+ $('#hint').textContent=current.length>150?`页面预览前 150 行 · 导出包含全部 ${current.length.toLocaleString()} 行`:`共 ${current.length.toLocaleString()} 行`;
+ if(!current.length){$('#tableArea').innerHTML='<div class="empty"><div><div class="big">∅</div><b>没有符合条件的数据</b></div></div>';return}
+ const hs=Object.keys(current[0]),show=current.slice(0,150);
+ $('#tableArea').innerHTML=`<div class="tablewrap"><table><thead><tr>${hs.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${show.map(r=>`<tr>${hs.map(h=>`<td title="${esc(r[h]??'')}">${esc(r[h]??'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
-function setupDrop(dropId,fileId,loader){
-  const d=$('#'+dropId), f=$('#'+fileId);
-  f.onchange=e=>e.target.files[0]&&loader(e.target.files[0]);
-  ['dragenter','dragover'].forEach(ev=>d.addEventListener(ev,e=>{e.preventDefault();d.classList.add('drag')}));
-  ['dragleave','drop'].forEach(ev=>d.addEventListener(ev,e=>{e.preventDefault();d.classList.remove('drag')}));
-  d.addEventListener('drop',e=>e.dataTransfer.files[0]&&loader(e.dataTransfer.files[0]));
+$$('[data-act]').forEach(b=>b.onclick=()=>openAction(b.dataset.act));
+function openAction(act){if(act!=='mergefiles'&&!current.length){alert('请先上传文件');return}activeAction=act;const meta=ACTIONS[act];$('#title').textContent=meta.name;$('#subtitle').textContent=meta.desc;$('#config').classList.add('show');buildConfig(act)}
+function buildConfig(act){
+ const H=headers,opts=H.map(h=>`<option value="${esc(h)}">${esc(h)}</option>`).join('');let html='';
+ if(act==='dedupe')html=`<div class="field"><label>去重字段</label><select id="c1">${opts}</select></div>`;
+ if(act==='filter')html=`<div class="field"><label>筛选字段</label><select id="c1">${opts}</select></div><div class="field"><label>条件</label><select id="mode"><option value="contains">包含</option><option value="equals">等于</option><option value="notempty">非空</option><option value="empty">为空</option><option value="gt">数字大于</option><option value="lt">数字小于</option></select></div><div class="field"><label>筛选值</label><input id="v1"></div>`;
+ if(act==='keepcols')html=`<div class="field" style="grid-column:1/-1"><label>保留字段（可多选）</label><select id="multi" multiple style="min-height:150px">${H.map(h=>`<option selected>${esc(h)}</option>`).join('')}</select></div>`;
+ if(act==='splitcol')html=`<div class="field"><label>要拆的字段</label><select id="c1">${opts}</select></div><div class="field"><label>分隔符</label><input id="v1" value="-"></div><div class="field"><label>新列前缀</label><input id="v2" value="拆分列"></div>`;
+ if(act==='mergecols')html=`<div class="field" style="grid-column:1/-1"><label>要合并的字段（可多选）</label><select id="multi" multiple style="min-height:120px">${H.map(h=>`<option>${esc(h)}</option>`).join('')}</select></div><div class="field"><label>分隔符</label><input id="v1" value="-"></div><div class="field"><label>新字段名</label><input id="v2" value="合并结果"></div>`;
+ if(act==='group')html=`<div class="field"><label>分组字段</label><select id="c1">${opts}</select></div><div class="field"><label>统计方式</label><select id="mode"><option value="count">行数</option><option value="distinct">去重计数</option><option value="sum">求和</option><option value="avg">平均值</option></select></div><div class="field"><label>统计字段</label><select id="c2">${opts}</select></div>`;
+ if(act==='replace')html=`<div class="field"><label>处理字段</label><select id="c1">${opts}</select></div><div class="field"><label>查找内容</label><input id="v1"></div><div class="field"><label>替换为</label><input id="v2" placeholder="留空则删除"></div>`;
+ if(act==='quality')html=`<div class="field"><label>主键字段</label><select id="c1">${opts}</select></div><div class="field" style="grid-column:span 2"><label>检查内容</label><input value="空值、重复整行、重复主键" disabled></div>`;
+ if(act==='mergefiles')html=`
+   <div class="field" style="grid-column:1/-1">
+     <label>选择多个文件</label>
+     <input id="mergeFiles" type="file" accept=".xlsx,.xls,.csv" multiple>
+   </div>
+   <div class="field" style="grid-column:1/-1">
+     <label>合并方式</label>
+     <select id="mergeMode">
+       <option value="onePerFile">每个文件一个 Sheet（取每个文件第一个 Sheet）</option>
+       <option value="allSheets">保留每个文件的全部 Sheet</option>
+       <option value="append">所有文件纵向合并到一个 Sheet</option>
+     </select>
+   </div>
+ `;
+ $('#cfgGrid').innerHTML=html;
+}
+$('#cancelCfg').onclick=()=>{$('#config').classList.remove('show');$('#title').textContent='文件预览';$('#subtitle').textContent='继续选择下一步处理。'};
+$('#apply').onclick=async()=>{
+ if(!activeAction)return;const act=activeAction;
+ if(act==='mergefiles'){
+   await mergeMultipleFiles();
+   return;
+ }
+ const before=JSON.parse(JSON.stringify(current));let detail='';
+ if(act==='dedupe'){const c=$('#c1').value,seen=new Set();current=current.filter(r=>{const k=String(r[c]??'');if(seen.has(k))return false;seen.add(k);return true});detail=`按「${c}」去重`}
+ if(act==='filter'){const c=$('#c1').value,m=$('#mode').value,v=$('#v1').value;current=current.filter(r=>{const x=String(r[c]??'');if(m==='contains')return x.includes(v);if(m==='equals')return x===v;if(m==='notempty')return x.trim()!=='';if(m==='empty')return x.trim()==='';if(m==='gt')return Number(x)>Number(v);if(m==='lt')return Number(x)<Number(v)});detail=`筛选「${c}」`}
+ if(act==='keepcols'){const ks=[...$('#multi').selectedOptions].map(o=>o.value);current=current.map(r=>Object.fromEntries(ks.map(k=>[k,r[k]])));headers=ks;detail=`保留 ${ks.length} 个字段`}
+ if(act==='splitcol'){const c=$('#c1').value,sep=$('#v1').value,prefix=$('#v2').value||'拆分列';let max=0;const arr=current.map(r=>String(r[c]??'').split(sep));arr.forEach(a=>max=Math.max(max,a.length));current=current.map((r,i)=>{const extra={};for(let j=0;j<max;j++)extra[`${prefix}${j+1}`]=arr[i][j]??'';return {...r,...extra}});headers=Object.keys(current[0]||{});detail=`拆分「${c}」为 ${max} 列`}
+ if(act==='mergecols'){const ks=[...$('#multi').selectedOptions].map(o=>o.value),sep=$('#v1').value,name=$('#v2').value||'合并结果';current=current.map(r=>({...r,[name]:ks.map(k=>r[k]??'').join(sep)}));headers=Object.keys(current[0]||{});detail=`合并 ${ks.length} 个字段`}
+ if(act==='group'){const g=$('#c1').value,m=$('#mode').value,c=$('#c2').value,b={};current.forEach(r=>(b[String(r[g]??'')]??=[]).push(r));current=Object.entries(b).map(([k,a])=>{let v;if(m==='count')v=a.length;if(m==='distinct')v=new Set(a.map(r=>String(r[c]??''))).size;if(m==='sum')v=a.reduce((s,r)=>s+(Number(r[c])||0),0);if(m==='avg')v=a.length?a.reduce((s,r)=>s+(Number(r[c])||0),0)/a.length:0;return {[g]:k,统计值:v}});current.sort((a,b)=>Number(b.统计值)-Number(a.统计值));headers=Object.keys(current[0]||{});detail=`按「${g}」分组统计`}
+ if(act==='replace'){const c=$('#c1').value,f=$('#v1').value,to=$('#v2').value;current=current.map(r=>({...r,[c]:String(r[c]??'').split(f).join(to)}));detail=`替换「${c}」中的内容`}
+ if(act==='quality'){const key=$('#c1').value,h=Object.keys(current[0]||{});let blanks=0;current.forEach(r=>h.forEach(c=>{if(String(r[c]??'').trim()==='')blanks++}));const rowKeys=current.map(r=>JSON.stringify(h.map(c=>r[c]))),dupRows=rowKeys.length-new Set(rowKeys).size,counts={};current.forEach(r=>{const k=String(r[key]??'');counts[k]=(counts[k]||0)+1});const dupKeys=Object.values(counts).filter(x=>x>1).reduce((s,x)=>s+x,0);current=[{检查项:'总行数',结果:current.length},{检查项:'总列数',结果:h.length},{检查项:'空值单元格',结果:blanks},{检查项:'重复整行',结果:dupRows},{检查项:`重复主键记录（${key}）`,结果:dupKeys}];headers=Object.keys(current[0]);detail=`检查主键「${key}」`}
+ history.push({data:before,label:ACTIONS[act].name,detail});$('#config').classList.remove('show');renderFile();renderPipeline();$('#title').textContent='处理完成';$('#subtitle').textContent=detail;
+};
+
+function safeSheetName(name){
+  return String(name || 'Sheet')
+    .replace(/[\\\/\?\*\[\]:]/g,'_')
+    .slice(0,31) || 'Sheet';
+}
+function uniqueSheetName(wb,name){
+  let base=safeSheetName(name), out=base, i=2;
+  while(wb.SheetNames.includes(out)){
+    const suffix='_'+i++;
+    out=safeSheetName(base.slice(0,31-suffix.length)+suffix);
+  }
+  return out;
+}
+async function mergeMultipleFiles(){
+  const input=document.getElementById('mergeFiles');
+  const files=[...(input?.files||[])];
+  if(files.length<2){
+    alert('请至少选择 2 个文件。');
+    return;
+  }
+  const mode=document.getElementById('mergeMode').value;
+  const outWb=XLSX.utils.book_new();
+  const summary=[];
+  let appendedRows=[];
+
+  for(const file of files){
+    const fileWb=await readWB(file);
+    const fileBase=file.name.replace(/\.[^.]+$/,'');
+    if(mode==='onePerFile'){
+      const sh=fileWb.SheetNames[0];
+      const rows=XLSX.utils.sheet_to_json(fileWb.Sheets[sh],{defval:'',raw:false});
+      const ws=XLSX.utils.json_to_sheet(rows);
+      const sheetName=uniqueSheetName(outWb,fileBase);
+      XLSX.utils.book_append_sheet(outWb,ws,sheetName);
+      summary.push({文件:file.name,原Sheet:sh,输出Sheet:sheetName,行数:rows.length});
+    }else if(mode==='allSheets'){
+      for(const sh of fileWb.SheetNames){
+        const rows=XLSX.utils.sheet_to_json(fileWb.Sheets[sh],{defval:'',raw:false});
+        const ws=XLSX.utils.json_to_sheet(rows);
+        const sheetName=uniqueSheetName(outWb,`${fileBase}_${sh}`);
+        XLSX.utils.book_append_sheet(outWb,ws,sheetName);
+        summary.push({文件:file.name,原Sheet:sh,输出Sheet:sheetName,行数:rows.length});
+      }
+    }else{
+      const sh=fileWb.SheetNames[0];
+      const rows=XLSX.utils.sheet_to_json(fileWb.Sheets[sh],{defval:'',raw:false})
+        .map(r=>({'来源文件':file.name,'来源Sheet':sh,...r}));
+      appendedRows.push(...rows);
+      summary.push({文件:file.name,原Sheet:sh,输出Sheet:'合并结果',行数:rows.length});
+    }
+  }
+
+  if(mode==='append'){
+    const ws=XLSX.utils.json_to_sheet(appendedRows);
+    XLSX.utils.book_append_sheet(outWb,ws,'合并结果');
+  }
+
+  const filename=`粘一下_多文件合并_${new Date().toISOString().slice(0,10)}.xlsx`;
+  XLSX.writeFile(outWb,filename);
+
+  current=summary;
+  headers=current.length?Object.keys(current[0]):[];
+  $('#config').classList.remove('show');
+  $('#title').textContent='多文件合并完成';
+  $('#subtitle').textContent=`已合并 ${files.length} 个文件，并自动下载新的 Excel。`;
+  renderFile();
+  activeAction=null;
 }
 
-/* 数据整理 */
-let cleanMode='dedupe';
-$$('[data-clean]').forEach(c=>c.onclick=()=>{
-  $$('[data-clean]').forEach(x=>x.classList.remove('active'));c.classList.add('active');cleanMode=c.dataset.clean;
-  const map={dedupe:'按字段去重',filter:'条件筛选',columns:'字段选择'};$('#cleanTitle').textContent=map[cleanMode];
-  $('#filterWrap').style.display=cleanMode==='filter'?'flex':'none';$('#filterValWrap').style.display=cleanMode==='filter'?'flex':'none';$('#keepColsWrap').style.display=cleanMode==='columns'?'flex':'none';
-});
-setupDrop('dropClean','fileClean',async file=>{
-  const wb=await readWB(file);state.clean={file,wb,rows:firstRows(wb)};$('#barClean').classList.add('show');$('#nameClean').textContent=file.name;$('#metaClean').textContent=fmtFile(file,state.clean.rows);
-  $('#cfgClean').classList.add('show');$('#sheetClean').innerHTML=wb.SheetNames.map(s=>`<option>${esc(s)}</option>`).join('');
-  const h=state.clean.rows.length?Object.keys(state.clean.rows[0]):[];fillSelect($('#colClean'),h);$('#keepCols').innerHTML=h.map(x=>`<option selected>${esc(x)}</option>`).join('');
-});
-$('#sheetClean').onchange=()=>{const wb=state.clean.wb;state.clean.rows=XLSX.utils.sheet_to_json(wb.Sheets[$('#sheetClean').value],{defval:'',raw:false});const h=state.clean.rows.length?Object.keys(state.clean.rows[0]):[];fillSelect($('#colClean'),h);$('#keepCols').innerHTML=h.map(x=>`<option selected>${esc(x)}</option>`).join('')};
-$('#runClean').onclick=()=>{
-  const rows=state.clean?.rows||[], col=$('#colClean').value;let out=[];
-  if(cleanMode==='dedupe'){const seen=new Set();out=rows.filter(r=>{const k=String(r[col]??'');if(seen.has(k))return false;seen.add(k);return true})}
-  if(cleanMode==='filter'){const m=$('#filterMode').value,v=$('#filterValue').value;out=rows.filter(r=>{const x=String(r[col]??'');if(m==='contains')return x.includes(v);if(m==='equals')return x===v;if(m==='notempty')return x.trim()!=='';if(m==='empty')return x.trim()==='';if(m==='gt')return Number(x)>Number(v);if(m==='lt')return Number(x)<Number(v)})}
-  if(cleanMode==='columns'){const ks=[...$('#keepCols').selectedOptions].map(o=>o.value);out=rows.map(r=>Object.fromEntries(ks.map(k=>[k,r[k]])))}
-  resultBox($('#resClean'),out,'数据整理结果');
-};
+function renderPipeline(){const box=$('#pipeline');if(!history.length){box.innerHTML='<div class="empty-pipe">你做的每一步都会记录在这里。<br>可以随时撤销上一步。</div>';$('#undo').disabled=true;return}box.innerHTML=history.map((h,i)=>`<div class="step ${i===history.length-1?'current':''}"><b>${i+1}. ${esc(h.label)}</b><span>${esc(h.detail)}</span></div>`).join('');$('#undo').disabled=false}
+$('#undo').onclick=()=>{if(!history.length)return;const last=history.pop();current=last.data;headers=current.length?Object.keys(current[0]):[];renderFile();renderPipeline();$('#title').textContent='已撤销上一步';$('#subtitle').textContent='可以继续处理。'};
+$('#reset').onclick=()=>{current=JSON.parse(JSON.stringify(original));headers=current.length?Object.keys(current[0]):[];history=[];renderFile();renderPipeline();$('#title').textContent='已恢复原始数据';$('#subtitle').textContent='所有处理步骤已清空。'};
+$('#xlsx').onclick=()=>downloadXLSX(current,(baseName||'粘一下')+'_处理结果.xlsx');
+$('#csv').onclick=()=>downloadCSV(current,(baseName||'粘一下')+'_处理结果.csv');
+function downloadXLSX(rows,name){if(!rows.length)return;const ws=XLSX.utils.json_to_sheet(rows),w=XLSX.utils.book_new();XLSX.utils.book_append_sheet(w,ws,'处理结果');XLSX.writeFile(w,name)}
+function downloadCSV(rows,name){if(!rows.length)return;const ws=XLSX.utils.json_to_sheet(rows),csv='\ufeff'+XLSX.utils.sheet_to_csv(ws),blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u)}
+$('#search').oninput=e=>{const q=e.target.value.trim();if(!q){$('#searchResults').classList.remove('show');return}const candidates=[];for(const [k,v] of Object.entries(SEARCH_ALIASES))if(k.includes(q)||q.includes(k))candidates.push(v);for(const [id,m] of Object.entries(ACTIONS))if(m.name.includes(q)||m.desc.includes(q))candidates.push(id);const uniq=[...new Set(candidates)];$('#searchResults').innerHTML=uniq.length?uniq.map(id=>`<div class="search-item" data-searchact="${id}"><b>${ACTIONS[id].name}</b><span>${ACTIONS[id].desc}</span></div>`).join(''):'<div class="search-item"><b>没找到完全匹配</b><span>试试“去重 / 拆列 / 统计 / 替换 / 检查”</span></div>';$('#searchResults').classList.add('show');$$('[data-searchact]').forEach(x=>x.onclick=()=>{openAction(x.dataset.searchact);$('#searchResults').classList.remove('show')})};
 
-/* 文件匹配 */
-async function loadMatch(file,side){
-  const wb=await readWB(file), rows=firstRows(wb), h=rows.length?Object.keys(rows[0]):[];state['match'+side]={file,rows,h};
-  $('#barMatch'+side).classList.add('show');$('#nameMatch'+side).textContent=file.name;$('#metaMatch'+side).textContent=fmtFile(file,rows);
-  fillSelect($('#key'+side),h);
-  if(side==='B')$('#addCols').innerHTML=h.map(x=>`<option>${esc(x)}</option>`).join('');
-  if(state.matchA&&state.matchB)$('#cfgMatch').classList.add('show');
+/* ---------- TEXT MODE ---------- */
+const tin=$('#tin'),tout=$('#tout');
+let pendingTextOp=null;
+const promoWords=['跨境','爆款','厂家直销','源头厂家','工厂直销','一件代发','来图定制','新款','新品','热卖','热销','亚马逊','temu','tiktok','shein','速卖通','独立站','外贸','专供','同款','网红','ins风','现货','批发','支持定制','跨境专供'];
+const colors=['黑色','白色','米色','杏色','灰色','银色','金色','红色','酒红','粉色','玫红','橙色','黄色','绿色','军绿','蓝色','藏青','紫色','棕色','咖色','卡其'];
+const sizes=['XXXS','XXS','XS','S','M','L','XL','XXL','XXXL','XXXXL','2XL','3XL','4XL','5XL','6XL','均码','大码','小码','中码','加大码','大号','中号','小号'];
+function tlines(s){return s.replace(/\r/g,'').split('\n')}
+function cleanLines(s){return tlines(s).map(x=>x.trim()).filter(Boolean)}
+function tcounts(){const a=tin.value,b=tout.value;$('#tinCount').textContent=`${a?tlines(a).length:0} 行 · ${a.length} 字符`;$('#toutCount').textContent=`${b?tlines(b).length:0} 行 · ${b.length} 字符`}
+tin.oninput=tcounts;tout.oninput=tcounts;
+$$('.text-tab').forEach(b=>b.onclick=()=>{$$('.text-tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');['basic','format','extract','product'].forEach(k=>$('#tools-'+k).style.display=k===b.dataset.tcat?'grid':'none')});
+$$('[data-top]').forEach(b=>b.onclick=()=>runTextOp(b.dataset.top));
+
+function parseDims(line){
+ const out=[];const re=/(\d+(?:\.\d+)?)\s*(cm|厘米|mm|毫米|m|米)?\s*[xX×*✕]\s*(\d+(?:\.\d+)?)\s*(cm|厘米|mm|毫米|m|米)?(?:\s*[xX×*✕]\s*(\d+(?:\.\d+)?)\s*(cm|厘米|mm|毫米|m|米)?)?/g;let m;
+ while((m=re.exec(line))){const vals=[m[1],m[3],m[5]].filter(Boolean).map(Number),unit=(m[2]||m[4]||m[6]||'cm').toLowerCase();let f=1;if(unit==='m'||unit==='米')f=100;if(unit==='mm'||unit==='毫米')f=.1;out.push({raw:m[0],cm:vals.map(v=>v*f)})}
+ return out;
 }
-$('#fileMatchA').onchange=e=>e.target.files[0]&&loadMatch(e.target.files[0],'A');
-$('#fileMatchB').onchange=e=>e.target.files[0]&&loadMatch(e.target.files[0],'B');
-$('#runMatch').onclick=()=>{
-  const a=state.matchA.rows,b=state.matchB.rows,ka=$('#keyA').value,kb=$('#keyB').value,adds=[...$('#addCols').selectedOptions].map(o=>o.value);
-  const map=new Map();b.forEach(r=>{const k=String(r[kb]??'');if(!map.has(k))map.set(k,r)});
-  let matched=0;const out=a.map(r=>{const br=map.get(String(r[ka]??''));if(br)matched++;const extra=Object.fromEntries(adds.map(c=>[c,br?br[c]:'']));return {...r,...extra}});
-  resultBox($('#resMatch'),out,`匹配结果_命中${matched}`);
-};
-
-/* 聚合 */
-$('#fileAgg').onchange=async e=>{
-  const file=e.target.files[0];if(!file)return;const wb=await readWB(file),rows=firstRows(wb),h=rows.length?Object.keys(rows[0]):[];state.agg={file,rows,h};
-  $('#barAgg').classList.add('show');$('#nameAgg').textContent=file.name;$('#metaAgg').textContent=fmtFile(file,rows);$('#cfgAgg').classList.add('show');fillSelect($('#groupCol'),h);fillSelect($('#metricCol'),h)
-};
-$('#aggMode').onchange=()=>$('#metricCol').disabled=$('#aggMode').value==='count';
-$('#runAgg').onclick=()=>{
-  const rows=state.agg.rows,g=$('#groupCol').value,m=$('#aggMode').value,c=$('#metricCol').value,b={};
-  rows.forEach(r=>(b[String(r[g]??'')]??=[]).push(r));
-  const out=Object.entries(b).map(([k,a])=>{let v;if(m==='count')v=a.length;if(m==='distinct')v=new Set(a.map(r=>String(r[c]??''))).size;if(m==='sum')v=a.reduce((s,r)=>s+(Number(r[c])||0),0);if(m==='avg')v=a.length?a.reduce((s,r)=>s+(Number(r[c])||0),0)/a.length:0;return {[g]:k,统计值:v}});
-  out.sort((x,y)=>Number(y.统计值)-Number(x.统计值));resultBox($('#resAgg'),out,'聚合统计结果');
-};
-
-/* SKU */
-const colors=['黑色','白色','米色','杏色','灰色','银色','金色','红色','粉色','黄色','绿色','蓝色','紫色','棕色','咖色','卡其'];
-const sizes=['XXXS','XXS','XS','S','M','L','XL','XXL','XXXL','2XL','3XL','4XL','5XL','均码','大号','中号','小号'];
-function parseSpec(s){
-  const text=String(s??'');let dims=[],weight='',color='',size='';
-  const dm=text.match(/(\d+(?:\.\d+)?)\s*(cm|mm|m|厘米|毫米|米)?\s*[xX×*]\s*(\d+(?:\.\d+)?)\s*(cm|mm|m|厘米|毫米|米)?(?:\s*[xX×*]\s*(\d+(?:\.\d+)?)\s*(cm|mm|m|厘米|毫米|米)?)?/i);
-  if(dm){const unit=(dm[2]||dm[4]||'cm').toLowerCase();let f=1; if(unit==='m'||unit==='米')f=100; if(unit==='mm'||unit==='毫米')f=.1; dims=[dm[1],dm[3],dm[5]].filter(Boolean).map(Number).map(x=>x*f)}
-  const wm=text.match(/(\d+(?:\.\d+)?)\s*(kg|千克|公斤|g|克)\b/i);if(wm){weight=Number(wm[1])*(/^(g|克)$/i.test(wm[2])?.001:1)}
-  color=colors.find(x=>text.includes(x))||'';
-  size=sizes.find(x=>new RegExp(`(^|[^A-Za-z0-9])${x}([^A-Za-z0-9]|$)`,'i').test(text))||'';
-  return {color,size,dims,weight};
+function runTextOp(op){
+ const raw=tin.value,ls=cleanLines(raw);let out='';
+ if(op==='prefix'||op==='replace'||op==='wherein'){openTextConfig(op);return}
+ if(op==='dedupe')out=[...new Set(ls)].join('\n');
+ if(op==='blank')out=tlines(raw).filter(x=>x.trim()).join('\n');
+ if(op==='trim')out=tlines(raw).map(x=>x.trim()).join('\n');
+ if(op==='sort')out=[...ls].sort((a,b)=>a.localeCompare(b,'zh-CN',{numeric:true})).join('\n');
+ if(op==='quotes')out=ls.map(x=>`'${x.replace(/'/g,"''")}'`).join('\n');
+ if(op==='comma')out=ls.join(',');
+ if(op==='json')out=JSON.stringify(ls,null,2);
+ if(op==='sqlin')out=`IN (\n  ${ls.map(x=>`'${x.replace(/'/g,"''")}'`).join(',\n  ')}\n)`;
+ if(op==='notin')out=`NOT IN (\n  ${ls.map(x=>`'${x.replace(/'/g,"''")}'`).join(',\n  ')}\n)`;
+ if(op==='numbers')out=[...raw.matchAll(/-?\d+(?:\.\d+)?/g)].map(m=>m[0]).join('\n');
+ if(op==='urls')out=[...new Set([...raw.matchAll(/https?:\/\/[^\s<>"']+/g)].map(m=>m[0].replace(/[),.;]+$/,'')))].join('\n');
+ if(op==='domain'){const us=[...raw.matchAll(/https?:\/\/[^\s<>"']+/g)].map(m=>m[0]);out=[...new Set(us.map(u=>{try{const z=new URL(u);return z.protocol+'//'+z.hostname}catch(e){return''}}).filter(Boolean))].join('\n')}
+ if(op==='cleanurl'){const us=[...raw.matchAll(/https?:\/\/[^\s<>"']+/g)].map(m=>m[0]);out=[...new Set(us.map(u=>{try{const z=new URL(u);return z.protocol+'//'+z.host+z.pathname}catch(e){return u.split('?')[0]}}))].join('\n')}
+ if(op==='emails')out=[...new Set([...raw.matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)].map(m=>m[0]))].join('\n');
+ if(op==='aliid'){const ids=[];ls.forEach(x=>{const m=x.match(/offer\/(\d+)\.html/i)||x.match(/(?:offerId|productId|itemId|id)[=\/](\d{6,})/i)||x.match(/\b(\d{8,})\b/);if(m)ids.push(m[1])});out=[...new Set(ids)].join('\n')}
+ if(op==='cleantitle')out=ls.map(line=>{let x=line;promoWords.forEach(w=>x=x.replace(new RegExp(w,'gi'),' '));return x.replace(/[【】\[\]（）()]/g,' ').replace(/\s+/g,' ').trim()}).join('\n');
+ if(op==='dimensions'){const rows=[];ls.forEach(line=>{const d=parseDims(line);if(d.length)rows.push(`${line}\t尺寸：${d.map(x=>x.raw).join(' | ')}`)});out=rows.join('\n')}
+ if(op==='over60'){out=ls.filter(line=>parseDims(line).some(d=>d.cm.some(v=>v>60))).join('\n')}
+ if(op==='spec'){out=ls.map(line=>{const d=parseDims(line),color=colors.find(c=>line.includes(c))||'',size=sizes.find(s=>new RegExp(`(^|[^A-Za-z0-9])${s}([^A-Za-z0-9]|$)`,'i').test(line))||'',wm=line.match(/(\d+(?:\.\d+)?)\s*(kg|千克|公斤|g|克)\b/i);let weight='';if(wm)weight=(Number(wm[1])*(/^(g|克)$/i.test(wm[2])?.001:1)).toFixed(3).replace(/0+$/,'').replace(/\.$/,'');return `${line}\t颜色:${color}\t尺码:${size}\t尺寸:${d.map(x=>x.raw).join('|')}\t重量kg:${weight}`}).join('\n')}
+ tout.value=out;tcounts();
 }
-$('#fileProduct').onchange=async e=>{
-  const file=e.target.files[0];if(!file)return;const wb=await readWB(file),rows=firstRows(wb),h=rows.length?Object.keys(rows[0]):[];state.product={rows};
-  $('#barProduct').classList.add('show');$('#nameProduct').textContent=file.name;$('#metaProduct').textContent=fmtFile(file,rows);$('#cfgProduct').classList.add('show');fillSelect($('#skuCol'),h)
+function openTextConfig(op){
+ pendingTextOp=op;$('#textCfg').classList.add('show');let html='';
+ if(op==='prefix'){ $('#textCfgTitle').textContent='批量前后缀';html='<div class="field"><label>前缀</label><input id="tc1" placeholder="例如 SKU-"></div><div class="field"><label>后缀</label><input id="tc2" placeholder="例如 -US"></div>'}
+ if(op==='replace'){ $('#textCfgTitle').textContent='批量替换';html='<div class="field"><label>查找内容</label><input id="tc1"></div><div class="field"><label>替换为</label><input id="tc2" placeholder="留空则删除"></div>'}
+ if(op==='wherein'){ $('#textCfgTitle').textContent='生成 WHERE IN';html='<div class="field" style="grid-column:1/-1"><label>字段名</label><input id="tc1" value="product_id"></div>'}
+ $('#textCfgFields').innerHTML=html;
+}
+$('#textCfgCancel').onclick=()=>{$('#textCfg').classList.remove('show');pendingTextOp=null};
+$('#textCfgApply').onclick=()=>{
+ const ls=cleanLines(tin.value);let out='',a=$('#tc1')?.value||'',b=$('#tc2')?.value||'';
+ if(pendingTextOp==='prefix')out=ls.map(x=>a+x+b).join('\n');
+ if(pendingTextOp==='replace')out=tin.value.split(a).join(b);
+ if(pendingTextOp==='wherein')out=`WHERE ${a||'product_id'} IN (\n  ${ls.map(x=>`'${x.replace(/'/g,"''")}'`).join(',\n  ')}\n);`;
+ tout.value=out;tcounts();$('#textCfg').classList.remove('show');pendingTextOp=null;
 };
-$('#runProduct').onclick=()=>{
-  const rows=state.product.rows,col=$('#skuCol').value,mode=$('#skuMode').value,t=Number($('#sizeThreshold').value||60);
-  let out=rows.map(r=>{const p=parseSpec(r[col]);return {...r,'解析颜色':p.color,'解析尺码':p.size,'尺寸(cm)':p.dims.join('×'),'最大边(cm)':p.dims.length?Math.max(...p.dims):'','重量(kg)':p.weight}});
-  if(mode==='large')out=out.filter(r=>Number(r['最大边(cm)'])>t);
-  if(mode==='invalid')out=out.filter(r=>!r['尺寸(cm)']||r['尺寸(cm)'].split('×').some(x=>Number(x)===0)||r['重量(kg)']==='');
-  resultBox($('#resProduct'),out,'SKU规格处理结果');
-};
+$('#sampleText').onclick=()=>{tin.value=`2026跨境爆款亚马逊草编手提包
+SKU：米色 XL 60×90cm 750g
+https://detail.1688.com/offer/123456789012.html?spm=test
+10001
+10002
+10002`;tcounts()};
+$('#clearText').onclick=()=>{tin.value='';tout.value='';tcounts()};
+$('#continueText').onclick=()=>{if(!tout.value.trim())return;tin.value=tout.value;tcounts();tin.focus()};
+$('#copyText').onclick=async()=>{if(!tout.value)return;try{await navigator.clipboard.writeText(tout.value)}catch(e){tout.select();document.execCommand('copy')}const s=$('#copyOk');s.classList.add('show');setTimeout(()=>s.classList.remove('show'),1000)};
+$('#downloadTxt').onclick=()=>{if(!tout.value)return;const blob=new Blob([tout.value],{type:'text/plain;charset=utf-8'}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='粘一下_文本处理结果.txt';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u)};
+tcounts();
 
-/* 1688 */
-$('#fileAli').onchange=async e=>{
-  const file=e.target.files[0];if(!file)return;const wb=await readWB(file),rows=firstRows(wb),h=rows.length?Object.keys(rows[0]):[];state.ali={rows};
-  $('#barAli').classList.add('show');$('#nameAli').textContent=file.name;$('#metaAli').textContent=fmtFile(file,rows);$('#cfgAli').classList.add('show');fillSelect($('#aliCol'),h)
-};
-$('#runAli').onclick=()=>{
-  const rows=state.ali.rows,col=$('#aliCol').value;
-  const out=rows.map(r=>{const raw=String(r[col]??''),m=raw.match(/https?:\/\/[^\s<>"']+/i),u=m?m[0]:'';let id='',shop='',clean='',type='文本';
-    if(u){try{const z=new URL(u);clean=z.protocol+'//'+z.host+z.pathname;const im=u.match(/offer\/(\d+)\.html/i)||u.match(/(?:offerId|productId|itemId|id)[=\/](\d{6,})/i);if(im)id=im[1];if(z.hostname==='detail.1688.com')type='商品链接';else if(z.hostname.endsWith('.1688.com')){type='店铺/1688链接';shop=z.protocol+'//'+z.hostname}}catch(e){type='无效链接'}}
-    return {...r,'链接类型':type,'1688商品ID':id,'1688店铺主页':shop,'干净链接':clean}
-  });
-  resultBox($('#resAli'),out,'1688解析结果');
-};
-
-/* quality */
-$('#fileQuality').onchange=async e=>{
-  const file=e.target.files[0];if(!file)return;const wb=await readWB(file),rows=firstRows(wb),h=rows.length?Object.keys(rows[0]):[];state.quality={rows,h,file};
-  $('#barQuality').classList.add('show');$('#nameQuality').textContent=file.name;$('#metaQuality').textContent=fmtFile(file,rows);$('#cfgQuality').classList.add('show');fillSelect($('#qualityKey'),h)
-};
-$('#runQuality').onclick=()=>{
-  const {rows,h}=state.quality,key=$('#qualityKey').value;let blanks=0;rows.forEach(r=>h.forEach(c=>{if(String(r[c]??'').trim()==='')blanks++}));
-  const rowKeys=rows.map(r=>JSON.stringify(h.map(c=>r[c]))), dupRows=rowKeys.length-new Set(rowKeys).size;
-  const counts={};rows.forEach(r=>{const k=String(r[key]??'');counts[k]=(counts[k]||0)+1});const dupKeys=Object.values(counts).filter(x=>x>1).reduce((s,x)=>s+x,0);
-  let urlBad=0,urlCount=0;rows.forEach(r=>h.forEach(c=>{const x=String(r[c]??'');if(x.includes('http')){urlCount++;try{new URL((x.match(/https?:\/\/[^\s]+/)||[''])[0])}catch(e){urlBad++}}}));
-  $('#qualityReport').innerHTML=`<div class="result"><div class="rhead"><b>数据体检报告</b><span class="stat">${rows.length.toLocaleString()} 行 · ${h.length} 列</span></div>
-  <div class="body"><div class="profile"><div class="pcard"><span>总行数</span><b>${rows.length.toLocaleString()}</b></div><div class="pcard"><span>空值单元格</span><b>${blanks.toLocaleString()}</b></div><div class="pcard"><span>重复整行</span><b>${dupRows.toLocaleString()}</b></div><div class="pcard"><span>重复主键记录</span><b>${dupKeys.toLocaleString()}</b></div></div>
-  <div class="issues">
-    <div class="issue"><div><b>空值</b><br><span>文件中所有空白单元格数量</span></div><span class="badge ${blanks?'warn':'good'}">${blanks?blanks+' 个':'正常'}</span></div>
-    <div class="issue"><div><b>重复主键</b><br><span>按「${esc(key)}」检查</span></div><span class="badge ${dupKeys?'bad':'good'}">${dupKeys?dupKeys+' 条':'正常'}</span></div>
-    <div class="issue"><div><b>URL 格式</b><br><span>检测到 ${urlCount} 个疑似 URL 单元格</span></div><span class="badge ${urlBad?'warn':'good'}">${urlBad?urlBad+' 个可疑':'正常'}</span></div>
-  </div></div></div>`;
-};
-
-/* quick */
-$$('[data-q]').forEach(b=>b.onclick=()=>{
-  const raw=$('#quickIn').value,ls=raw.replace(/\r/g,'').split('\n').map(x=>x.trim()).filter(Boolean),t=b.dataset.q;let out='';
-  if(t==='dedupe')out=[...new Set(ls)].join('\n');
-  if(t==='sql')out="IN (\n  "+ls.map(x=>"'"+x.replace(/'/g,"''")+"'").join(',\n  ')+"\n)";
-  if(t==='json')out=JSON.stringify(ls,null,2);
-  if(t==='domain'){const us=[...raw.matchAll(/https?:\/\/[^\s<>"']+/g)].map(m=>m[0]);out=[...new Set(us.map(u=>{try{const z=new URL(u);return z.protocol+'//'+z.hostname}catch(e){return''}}).filter(Boolean))].join('\n')}
-  if(t==='aliid'){const ids=[];ls.forEach(x=>{const m=x.match(/offer\/(\d+)\.html/i)||x.match(/\b(\d{8,})\b/);if(m)ids.push(m[1])});out=[...new Set(ids)].join('\n')}
-  $('#quickOut').value=out;
-});
-$('#quickContinue').onclick=()=>{if($('#quickOut').value.trim())$('#quickIn').value=$('#quickOut').value};
-$('#quickCopy').onclick=async()=>{if(!$('#quickOut').value)return;try{await navigator.clipboard.writeText($('#quickOut').value)}catch(e){$('#quickOut').select();document.execCommand('copy')}};
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 </script>
 </body>
 </html>

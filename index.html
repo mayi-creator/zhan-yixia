@@ -223,6 +223,19 @@ input:focus,select:focus,textarea:focus{border-color:#b0aaff;box-shadow:0 0 0 3p
 }
 .merge-success.show{display:block}
 
+
+.large-file-note{
+  margin-top:10px;
+  padding:11px 12px;
+  border:1px solid #f0d9a8;
+  background:#fff9ec;
+  color:#8a5a00;
+  border-radius:12px;
+  font-size:10px;
+  line-height:1.6;
+  display:none;
+}
+.large-file-note.show{display:block}
 </style>
 </head>
 <body>
@@ -562,6 +575,7 @@ function openMergeWorkspace(){
         </div>
       </div>
 
+      <div class="large-file-note" id="largeFileNote"></div>
       <div class="merge-success" id="mergeHeroSuccess">
         <div id="mergeHeroSuccessText"></div>
         <div class="actions" style="margin-top:10px">
@@ -637,6 +651,21 @@ function renderMergeWorkspaceList(){
 
   count.textContent=`${mergeSelectedFiles.length} 个`;
 
+  const largeNote=document.getElementById('largeFileNote');
+  if(largeNote){
+    const totalBytes=mergeSelectedFiles.reduce((s,f)=>s+f.size,0);
+    const allCsv=mergeSelectedFiles.length>0 && mergeSelectedFiles.every(f=>/\.csv$/i.test(f.name));
+    if(totalBytes>=80*1024*1024){
+      largeNote.classList.add('show');
+      largeNote.textContent=allCsv
+        ? `已选择 ${(totalBytes/1024/1024).toFixed(0)} MB CSV。选择“纵向合并”时会自动使用大文件流式模式，直接写入磁盘，不占用大量浏览器内存。`
+        : `已选择 ${(totalBytes/1024/1024).toFixed(0)} MB 文件。大体积 XLSX 多 Sheet 合并仍可能受浏览器内存限制。`;
+    }else{
+      largeNote.classList.remove('show');
+      largeNote.textContent='';
+    }
+  }
+
   if(!mergeSelectedFiles.length){
     list.innerHTML='<div class="merge-empty-list">还没有文件，拖进来或点击“添加文件”。</div>';
     return;
@@ -661,6 +690,147 @@ function renderMergeWorkspaceList(){
   });
 }
 
+
+async function detectCsvEncoding(file){
+  const sample=await file.slice(0,Math.min(file.size,128*1024)).arrayBuffer();
+  try{
+    new TextDecoder('utf-8',{fatal:true}).decode(sample);
+    return 'utf-8';
+  }catch(e){
+    return 'gb18030';
+  }
+}
+
+async function csvFirstLine(file,encoding){
+  const sample=await file.slice(0,Math.min(file.size,512*1024)).arrayBuffer();
+  const text=new TextDecoder(encoding).decode(sample);
+  const pos=text.indexOf('\n');
+  return (pos>=0?text.slice(0,pos):text).replace(/^\uFEFF/,'').replace(/\r$/,'');
+}
+
+async function mergeLargeCsvStreaming(files,runBtn,success,successText,downloadBtn){
+  if(!('showSaveFilePicker' in window)){
+    alert('这些 CSV 太大，浏览器内存模式容易失败。大文件流式合并需要 Chrome / Edge 的“直接保存到磁盘”能力。请用最新版 Chrome 打开 GitHub Pages 后再试。');
+    return false;
+  }
+
+  // Must be requested while still inside the button click gesture.
+  let handle;
+  try{
+    handle=await window.showSaveFilePicker({
+      suggestedName:`粘一下_大文件合并_${new Date().toISOString().slice(0,10)}.csv`,
+      types:[{
+        description:'CSV 文件',
+        accept:{'text/csv':['.csv']}
+      }]
+    });
+  }catch(err){
+    if(err && err.name==='AbortError') return false;
+    throw err;
+  }
+
+  const encodings=[];
+  const headers=[];
+  for(let i=0;i<files.length;i++){
+    runBtn.textContent=`检查文件 ${i+1}/${files.length}`;
+    const enc=await detectCsvEncoding(files[i]);
+    encodings.push(enc);
+    headers.push(await csvFirstLine(files[i],enc));
+  }
+
+  const normalized=headers.map(x=>x.trim());
+  const firstHeader=normalized[0];
+  const mismatch=normalized.findIndex(x=>x!==firstHeader);
+  if(mismatch>=0){
+    alert(`第 ${mismatch+1} 个文件的表头与第 1 个文件不一致，已停止合并，避免列错位。`);
+    return false;
+  }
+
+  const writable=await handle.createWritable();
+  const encoder=new TextEncoder();
+  const totalBytes=files.reduce((s,f)=>s+f.size,0);
+  let processedBytes=0;
+  let previousEndedWithNewline=true;
+
+  // UTF-8 BOM, so Excel opens Chinese correctly.
+  await writable.write(new Uint8Array([0xEF,0xBB,0xBF]));
+
+  try{
+    for(let index=0;index<files.length;index++){
+      const file=files[index];
+      const reader=file.stream().getReader();
+      const decoder=new TextDecoder(encodings[index]);
+      let skipHeader=index>0;
+      let headerBuffer='';
+      let fileStarted=false;
+
+      while(true){
+        const {value,done}=await reader.read();
+        if(done) break;
+
+        processedBytes+=value.byteLength;
+        const pct=Math.min(99,Math.round(processedBytes/totalBytes*100));
+        runBtn.textContent=`处理中 ${index+1}/${files.length} · ${pct}%`;
+
+        let chunk=decoder.decode(value,{stream:true});
+
+        if(skipHeader){
+          const combined=headerBuffer+chunk;
+          const nl=combined.indexOf('\n');
+          if(nl<0){
+            headerBuffer=combined;
+            continue;
+          }
+          chunk=combined.slice(nl+1);
+          skipHeader=false;
+          headerBuffer='';
+
+          if(chunk && !previousEndedWithNewline){
+            await writable.write(encoder.encode('\n'));
+            previousEndedWithNewline=true;
+          }
+        }
+
+        if(chunk){
+          await writable.write(encoder.encode(chunk));
+          previousEndedWithNewline=/[\r\n]$/.test(chunk);
+          fileStarted=true;
+        }
+      }
+
+      let tail=decoder.decode();
+      if(skipHeader){
+        // A CSV with header but no data.
+        tail='';
+      }
+      if(tail){
+        if(index>0 && !fileStarted && !previousEndedWithNewline){
+          await writable.write(encoder.encode('\n'));
+        }
+        await writable.write(encoder.encode(tail));
+        previousEndedWithNewline=/[\r\n]$/.test(tail);
+      }
+    }
+
+    await writable.close();
+
+    if(successText){
+      successText.textContent=`大文件合并完成：${files.length} 个 CSV 已直接保存到磁盘。没有把 300+ MB 数据全部塞进浏览器内存。`;
+    }
+    if(downloadBtn) downloadBtn.style.display='none';
+    success.classList.add('show');
+
+    $('#mrows').textContent=`${files.length} 文件`;
+    $('#mcols').textContent='1 CSV';
+    $('#mstate').textContent='已完成';
+    return true;
+  }catch(err){
+    try{await writable.abort()}catch(e){}
+    throw err;
+  }
+}
+
+
 async function mergeFromDedicatedWorkspace(){
   const files=[...mergeSelectedFiles];
   if(files.length<2){
@@ -673,6 +843,33 @@ async function mergeFromDedicatedWorkspace(){
   const successText=document.getElementById('mergeHeroSuccessText');
   const downloadBtn=document.getElementById('mergeHeroDownloadBtn');
   const mode=document.getElementById('mergeHeroMode').value;
+  const totalBytes=files.reduce((s,f)=>s+f.size,0);
+  const allCsv=files.every(f=>/\.csv$/i.test(f.name));
+
+  // Large CSV append mode: do not parse hundreds of MB into JS objects/XLSX.
+  // Stream the files directly to a UTF-8 CSV on disk instead.
+  if(mode==='append' && allCsv && totalBytes>=80*1024*1024){
+    runBtn.disabled=true;
+    runBtn.textContent='准备大文件模式…';
+    success?.classList.remove('show');
+    if(downloadBtn) downloadBtn.style.display='none';
+    try{
+      await mergeLargeCsvStreaming(files,runBtn,success,successText,downloadBtn);
+    }catch(err){
+      console.error(err);
+      alert(`大文件合并失败：${err?.message || err}`);
+    }finally{
+      runBtn.disabled=false;
+      runBtn.textContent='合并并下载';
+    }
+    return;
+  }
+
+  // Large non-CSV / multi-sheet XLSX generation can exhaust browser memory.
+  if(totalBytes>=180*1024*1024 && mode!=='append'){
+    alert(`当前文件合计约 ${(totalBytes/1024/1024).toFixed(0)} MB。浏览器直接生成多 Sheet XLSX 很容易耗尽内存。\n\n建议：如果这些都是 CSV，请选择“所有文件纵向合并到一个 Sheet”，工具会自动进入大文件流式模式；如果必须保留多个 Sheet，就需要后端版处理。`);
+    return;
+  }
 
   runBtn.disabled=true;
   runBtn.textContent='正在合并…';
@@ -769,7 +966,7 @@ async function mergeFromDedicatedWorkspace(){
     $('#mstate').textContent='已完成';
   }catch(err){
     console.error(err);
-    alert('合并失败。请检查文件是否损坏，或尝试换一种合并方式。');
+    alert(`合并失败：${err?.message || err}\n\n如果文件总量很大，请优先使用 CSV 的“所有文件纵向合并到一个 Sheet”大文件模式。`);
   }finally{
     runBtn.disabled=false;
     runBtn.textContent='合并并下载';

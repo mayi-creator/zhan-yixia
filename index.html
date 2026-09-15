@@ -64,6 +64,63 @@ input:focus,select:focus,textarea:focus{border-color:#b0aaff;box-shadow:0 0 0 3p
 @media(max-width:1150px){.file-shell{grid-template-columns:260px 1fr}.pipeline{grid-column:1/-1;position:static}.pipeline-list{grid-template-columns:repeat(4,1fr)}.text-shell{grid-template-columns:1fr}.text-center{position:static}}
 @media(max-width:850px){.file-shell{grid-template-columns:1fr}.side{position:static}.quick-grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:650px){.app{padding:12px 9px 35px}.hero{padding:19px}.hero h2{font-size:25px}.quick-grid,.cfg-grid,.tool-grid,.text-config .grid{grid-template-columns:1fr 1fr}.pipeline-list{grid-template-columns:1fr 1fr}}
+
+  .merge-drop{
+    grid-column:1/-1;
+    border:1.5px dashed #c9cfda;
+    border-radius:16px;
+    background:#fff;
+    min-height:130px;
+    padding:18px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    transition:.18s;
+  }
+  .merge-drop.drag{
+    border-color:var(--p);
+    background:#f7f5ff;
+    box-shadow:0 0 0 4px rgba(99,91,255,.07);
+  }
+  .merge-drop .merge-ico{font-size:28px;margin-bottom:5px}
+  .merge-drop b{font-size:12px}
+  .merge-drop p{font-size:10px;color:var(--muted);margin:4px 0 10px;line-height:1.5}
+  .merge-file-list{
+    grid-column:1/-1;
+    display:grid;
+    gap:7px;
+    max-height:210px;
+    overflow:auto;
+  }
+  .merge-file-row{
+    border:1px solid var(--line);
+    border-radius:11px;
+    background:#fff;
+    padding:8px 10px;
+    display:flex;
+    align-items:center;
+    gap:9px;
+  }
+  .merge-file-row .file-icon{font-size:16px}
+  .merge-file-row .file-meta{flex:1;min-width:0}
+  .merge-file-row .file-meta b{
+    display:block;font-size:10px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .merge-file-row .file-meta span{font-size:9px;color:var(--muted)}
+  .merge-remove{
+    border:0;background:transparent;color:#98a2b3;
+    font-size:16px;padding:3px 6px;border-radius:8px;
+  }
+  .merge-remove:hover{background:#f4f5f7;color:var(--red)}
+  .merge-count{
+    grid-column:1/-1;
+    font-size:10px;color:var(--muted);
+    display:flex;justify-content:space-between;gap:10px;
+  }
+
 </style>
 </head>
 <body>
@@ -222,6 +279,7 @@ $$('.mode-tab').forEach(b=>b.onclick=()=>{
 
 /* ---------- FILE MODE ---------- */
 let wb=null, original=[], current=[], headers=[], history=[], activeAction=null, baseName='', currentFile=null;
+let mergeSelectedFiles=[];
 
 const ACTIONS={
  dedupe:{name:'按字段去重',desc:'选择一列作为唯一标识，只保留第一条记录。'},
@@ -232,7 +290,7 @@ const ACTIONS={
  group:{name:'分组统计',desc:'按某列分组后计数、去重计数、求和或平均。'},
  replace:{name:'批量替换',desc:'对某一列统一查找并替换内容。'},
  quality:{name:'数据检查',desc:'检查空值、重复整行和重复主键。'},
- mergefiles:{name:'多文件合并',desc:'一次选择多个 Excel / CSV，合并成一个新的 Excel。'}
+ mergefiles:{name:'多文件合并',desc:'拖入或分批添加多个 Excel / CSV，合并成一个新的 Excel。'}
 };
 const SEARCH_ALIASES={'去重':'dedupe','重复':'dedupe','筛选':'filter','过滤':'filter','保留字段':'keepcols','删除字段':'keepcols','拆列':'splitcol','分列':'splitcol','合并列':'mergecols','拼接列':'mergecols','统计':'group','聚合':'group','求和':'group','平均':'group','替换':'replace','检查':'quality','体检':'quality','空值':'quality','多文件':'mergefiles','合并文件':'mergefiles','文件合并':'mergefiles','不同sheet':'mergefiles','多个excel':'mergefiles'};
 
@@ -286,10 +344,18 @@ function buildConfig(act){
  if(act==='replace')html=`<div class="field"><label>处理字段</label><select id="c1">${opts}</select></div><div class="field"><label>查找内容</label><input id="v1"></div><div class="field"><label>替换为</label><input id="v2" placeholder="留空则删除"></div>`;
  if(act==='quality')html=`<div class="field"><label>主键字段</label><select id="c1">${opts}</select></div><div class="field" style="grid-column:span 2"><label>检查内容</label><input value="空值、重复整行、重复主键" disabled></div>`;
  if(act==='mergefiles')html=`
-   <div class="field" style="grid-column:1/-1">
-     <label>选择多个文件</label>
-     <input id="mergeFiles" type="file" accept=".xlsx,.xls,.csv" multiple>
+   <div class="merge-drop" id="mergeDrop">
+     <div class="merge-ico">🗂</div>
+     <b>把多个 Excel / CSV 拖到这里</b>
+     <p>支持一次拖多个文件，也可以分几次添加。<br>CSV 会自动识别 UTF-8 / GBK 中文编码。</p>
+     <button type="button" class="btn primary" id="mergeChooseBtn">＋ 添加文件</button>
+     <input id="mergeFiles" type="file" accept=".xlsx,.xls,.csv" multiple hidden>
    </div>
+   <div class="merge-count">
+     <span id="mergeCountText">还没有选择文件</span>
+     <button type="button" class="btn soft" id="mergeClearBtn" style="display:none">清空全部</button>
+   </div>
+   <div class="merge-file-list" id="mergeFileList"></div>
    <div class="field" style="grid-column:1/-1">
      <label>合并方式</label>
      <select id="mergeMode">
@@ -300,6 +366,7 @@ function buildConfig(act){
    </div>
  `;
  $('#cfgGrid').innerHTML=html;
+ if(act==='mergefiles') setupMergePicker();
 }
 $('#cancelCfg').onclick=()=>{$('#config').classList.remove('show');$('#title').textContent='文件预览';$('#subtitle').textContent='继续选择下一步处理。'};
 $('#apply').onclick=async()=>{
@@ -333,11 +400,105 @@ function uniqueSheetName(wb,name){
   }
   return out;
 }
-async function mergeMultipleFiles(){
+
+function mergeFileKey(file){
+  return [file.name,file.size,file.lastModified].join('::');
+}
+
+function addMergeFiles(files){
+  const allowed=/\.(xlsx|xls|csv)$/i;
+  const existing=new Set(mergeSelectedFiles.map(mergeFileKey));
+  for(const file of [...files]){
+    if(!allowed.test(file.name)) continue;
+    const key=mergeFileKey(file);
+    if(!existing.has(key)){
+      mergeSelectedFiles.push(file);
+      existing.add(key);
+    }
+  }
+  renderMergeFileList();
+}
+
+function renderMergeFileList(){
+  const list=document.getElementById('mergeFileList');
+  const count=document.getElementById('mergeCountText');
+  const clear=document.getElementById('mergeClearBtn');
+  if(!list || !count) return;
+
+  count.textContent=mergeSelectedFiles.length
+    ? `已选择 ${mergeSelectedFiles.length} 个文件`
+    : '还没有选择文件';
+
+  if(clear) clear.style.display=mergeSelectedFiles.length ? 'inline-flex' : 'none';
+
+  list.innerHTML=mergeSelectedFiles.map((file,i)=>`
+    <div class="merge-file-row">
+      <div class="file-icon">📄</div>
+      <div class="file-meta">
+        <b title="${esc(file.name)}">${esc(file.name)}</b>
+        <span>${(file.size/1024/1024).toFixed(2)} MB</span>
+      </div>
+      <button type="button" class="merge-remove" data-remove-merge="${i}" title="移除">×</button>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('[data-remove-merge]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      mergeSelectedFiles.splice(Number(btn.dataset.removeMerge),1);
+      renderMergeFileList();
+    });
+  });
+}
+
+function setupMergePicker(){
+  // 每次重新进入“多文件合并”时保留已经选过的文件，方便继续添加。
   const input=document.getElementById('mergeFiles');
-  const files=[...(input?.files||[])];
+  const choose=document.getElementById('mergeChooseBtn');
+  const drop=document.getElementById('mergeDrop');
+  const clear=document.getElementById('mergeClearBtn');
+  if(!input || !choose || !drop) return;
+
+  choose.addEventListener('click',()=>input.click());
+
+  input.addEventListener('change',()=>{
+    addMergeFiles(input.files || []);
+    // 允许下一次再次选择相同文件。
+    input.value='';
+  });
+
+  ['dragenter','dragover'].forEach(type=>{
+    drop.addEventListener(type,e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      drop.classList.add('drag');
+    });
+  });
+
+  ['dragleave','drop'].forEach(type=>{
+    drop.addEventListener(type,e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      drop.classList.remove('drag');
+    });
+  });
+
+  drop.addEventListener('drop',e=>{
+    addMergeFiles(e.dataTransfer.files || []);
+  });
+
+  clear?.addEventListener('click',()=>{
+    mergeSelectedFiles=[];
+    renderMergeFileList();
+  });
+
+  renderMergeFileList();
+}
+
+
+async function mergeMultipleFiles(){
+  const files=[...mergeSelectedFiles];
   if(files.length<2){
-    alert('请至少选择 2 个文件。');
+    alert('请至少添加 2 个文件。你可以一次多选，也可以分几次添加或直接拖拽多个文件进来。');
     return;
   }
   const mode=document.getElementById('mergeMode').value;
@@ -379,6 +540,9 @@ async function mergeMultipleFiles(){
 
   const filename=`粘一下_多文件合并_${new Date().toISOString().slice(0,10)}.xlsx`;
   XLSX.writeFile(outWb,filename);
+
+  mergeSelectedFiles=[];
+  renderMergeFileList();
 
   current=summary;
   headers=current.length?Object.keys(current[0]):[];

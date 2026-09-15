@@ -4,7 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>粘一下 · 万能数据工作台 v10</title>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js">window.addEventListener('beforeunload',()=>{
+  if(mergeDownloadUrl) URL.revokeObjectURL(mergeDownloadUrl);
+});
+</script>
 <style>
 :root{
   --bg:#f6f7fb;--card:#fff;--text:#101828;--text2:#344054;--muted:#667085;--line:#e6e8ee;
@@ -120,6 +123,105 @@ input:focus,select:focus,textarea:focus{border-color:#b0aaff;box-shadow:0 0 0 3p
     font-size:10px;color:var(--muted);
     display:flex;justify-content:space-between;gap:10px;
   }
+
+
+.merge-workspace{
+  padding:22px;
+}
+.merge-hero-drop{
+  border:2px dashed #cbd2df;
+  border-radius:20px;
+  background:#fafbfc;
+  min-height:210px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  transition:.18s;
+}
+.merge-hero-drop.drag{
+  border-color:var(--p);
+  background:#f6f4ff;
+  box-shadow:0 0 0 5px rgba(99,91,255,.07);
+}
+.merge-hero-drop .big{font-size:42px}
+.merge-hero-drop b{font-size:15px;margin-top:8px}
+.merge-hero-drop p{font-size:11px;color:var(--muted);line-height:1.6;margin:5px 0 12px}
+.merge-panel{
+  margin-top:14px;
+  border:1px solid var(--line);
+  border-radius:17px;
+  overflow:hidden;
+  background:#fff;
+}
+.merge-panel-head{
+  padding:12px 14px;
+  border-bottom:1px solid var(--line);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  background:#fbfcfe;
+}
+.merge-panel-head b{font-size:12px}
+.merge-panel-head span{font-size:10px;color:var(--muted)}
+.merge-selected-list{
+  max-height:300px;
+  overflow:auto;
+  padding:8px 12px;
+  display:grid;
+  gap:7px;
+}
+.merge-selected-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:9px 10px;
+  border:1px solid var(--line);
+  border-radius:12px;
+}
+.merge-selected-row .meta{flex:1;min-width:0}
+.merge-selected-row .meta b{
+  font-size:11px;
+  display:block;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.merge-selected-row .meta span{font-size:9px;color:var(--muted)}
+.merge-selected-row button{
+  border:0;
+  background:transparent;
+  color:#98a2b3;
+  font-size:17px;
+}
+.merge-options{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:10px;
+  align-items:end;
+  padding:14px;
+  border-top:1px solid var(--line);
+  background:#fbfcfe;
+}
+.merge-empty-list{
+  text-align:center;
+  color:var(--muted);
+  font-size:10px;
+  padding:24px;
+}
+.merge-success{
+  margin-top:14px;
+  padding:13px 14px;
+  border:1px solid #ccebd8;
+  background:#f2fbf5;
+  color:#16794a;
+  border-radius:14px;
+  font-size:11px;
+  display:none;
+}
+.merge-success.show{display:block}
 
 </style>
 </head>
@@ -280,6 +382,8 @@ $$('.mode-tab').forEach(b=>b.onclick=()=>{
 /* ---------- FILE MODE ---------- */
 let wb=null, original=[], current=[], headers=[], history=[], activeAction=null, baseName='', currentFile=null;
 let mergeSelectedFiles=[];
+let mergeDownloadUrl=null;
+let mergeDownloadName='';
 
 const ACTIONS={
  dedupe:{name:'按字段去重',desc:'选择一列作为唯一标识，只保留第一条记录。'},
@@ -290,7 +394,7 @@ const ACTIONS={
  group:{name:'分组统计',desc:'按某列分组后计数、去重计数、求和或平均。'},
  replace:{name:'批量替换',desc:'对某一列统一查找并替换内容。'},
  quality:{name:'数据检查',desc:'检查空值、重复整行和重复主键。'},
- mergefiles:{name:'多文件合并',desc:'拖入或分批添加多个 Excel / CSV，合并成一个新的 Excel。'}
+ mergefiles:{name:'多文件合并',desc:'独立多文件工作区：拖入或分批添加多个 Excel / CSV，再合并下载。'}
 };
 const SEARCH_ALIASES={'去重':'dedupe','重复':'dedupe','筛选':'filter','过滤':'filter','保留字段':'keepcols','删除字段':'keepcols','拆列':'splitcol','分列':'splitcol','合并列':'mergecols','拼接列':'mergecols','统计':'group','聚合':'group','求和':'group','平均':'group','替换':'replace','检查':'quality','体检':'quality','空值':'quality','多文件':'mergefiles','合并文件':'mergefiles','文件合并':'mergefiles','不同sheet':'mergefiles','多个excel':'mergefiles'};
 
@@ -332,7 +436,19 @@ function renderFile(){
  $('#tableArea').innerHTML=`<div class="tablewrap"><table><thead><tr>${hs.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${show.map(r=>`<tr>${hs.map(h=>`<td title="${esc(r[h]??'')}">${esc(r[h]??'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
 $$('[data-act]').forEach(b=>b.onclick=()=>openAction(b.dataset.act));
-function openAction(act){if(act!=='mergefiles'&&!current.length){alert('请先上传文件');return}activeAction=act;const meta=ACTIONS[act];$('#title').textContent=meta.name;$('#subtitle').textContent=meta.desc;$('#config').classList.add('show');buildConfig(act)}
+function openAction(act){
+  if(act==='mergefiles'){
+    openMergeWorkspace();
+    return;
+  }
+  if(!current.length){alert('请先上传文件');return}
+  activeAction=act;
+  const meta=ACTIONS[act];
+  $('#title').textContent=meta.name;
+  $('#subtitle').textContent=meta.desc;
+  $('#config').classList.add('show');
+  buildConfig(act)
+}
 function buildConfig(act){
  const H=headers,opts=H.map(h=>`<option value="${esc(h)}">${esc(h)}</option>`).join('');let html='';
  if(act==='dedupe')html=`<div class="field"><label>去重字段</label><select id="c1">${opts}</select></div>`;
@@ -366,7 +482,7 @@ function buildConfig(act){
    </div>
  `;
  $('#cfgGrid').innerHTML=html;
- if(act==='mergefiles') setupMergePicker();
+
 }
 $('#cancelCfg').onclick=()=>{$('#config').classList.remove('show');$('#title').textContent='文件预览';$('#subtitle').textContent='继续选择下一步处理。'};
 $('#apply').onclick=async()=>{
@@ -400,6 +516,266 @@ function uniqueSheetName(wb,name){
   }
   return out;
 }
+
+
+function openMergeWorkspace(){
+  activeAction='mergefiles';
+  $('#config').classList.remove('show');
+  $('#footer').style.display='none';
+  $('#title').textContent='多文件合并';
+  $('#subtitle').textContent='直接拖入多个 Excel / CSV，不需要先上传单个文件。';
+  $('#mrows').textContent='—';
+  $('#mcols').textContent='—';
+  $('#mstate').textContent='多文件模式';
+
+  $('#tableArea').innerHTML=`
+    <div class="merge-workspace">
+      <div class="merge-hero-drop" id="mergeHeroDrop">
+        <div class="big">🗂</div>
+        <b>把多个 Excel / CSV 拖到这里</b>
+        <p>可以一次拖多个，也可以分几次添加。<br>支持 .xlsx / .xls / .csv</p>
+        <button type="button" class="btn primary" id="mergeHeroChoose">＋ 添加文件</button>
+        <input id="mergeHeroInput" type="file" accept=".xlsx,.xls,.csv" multiple hidden>
+      </div>
+
+      <div class="merge-panel">
+        <div class="merge-panel-head">
+          <b>已选择文件</b>
+          <span id="mergeHeroCount">0 个</span>
+        </div>
+        <div class="merge-selected-list" id="mergeHeroList">
+          <div class="merge-empty-list">还没有文件，拖进来或点击“添加文件”。</div>
+        </div>
+        <div class="merge-options">
+          <div class="field">
+            <label>合并方式</label>
+            <select id="mergeHeroMode">
+              <option value="onePerFile">每个文件一个 Sheet（取每个文件第一个 Sheet）</option>
+              <option value="allSheets">保留每个文件的全部 Sheet</option>
+              <option value="append">所有文件纵向合并到一个 Sheet</option>
+            </select>
+          </div>
+          <div class="actions">
+            <button type="button" class="btn soft" id="mergeHeroClear">清空</button>
+            <button type="button" class="btn primary" id="mergeHeroRun">合并并下载</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="merge-success" id="mergeHeroSuccess">
+        <div id="mergeHeroSuccessText"></div>
+        <div class="actions" style="margin-top:10px">
+          <button type="button" class="btn primary" id="mergeHeroDownloadBtn" style="display:none">下载合并结果</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  bindMergeWorkspace();
+  renderMergeWorkspaceList();
+}
+
+function bindMergeWorkspace(){
+  const drop=document.getElementById('mergeHeroDrop');
+  const input=document.getElementById('mergeHeroInput');
+  const choose=document.getElementById('mergeHeroChoose');
+  const clear=document.getElementById('mergeHeroClear');
+  const run=document.getElementById('mergeHeroRun');
+  const downloadBtn=document.getElementById('mergeHeroDownloadBtn');
+
+  choose.addEventListener('click',()=>input.click());
+
+  downloadBtn?.addEventListener('click',()=>{
+    if(!mergeDownloadUrl) return;
+    const a=document.createElement('a');
+    a.href=mergeDownloadUrl;
+    a.download=mergeDownloadName || '粘一下_多文件合并.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  });
+
+  input.addEventListener('change',()=>{
+    addMergeFiles(input.files || []);
+    input.value='';
+    renderMergeWorkspaceList();
+  });
+
+  ['dragenter','dragover'].forEach(type=>{
+    drop.addEventListener(type,e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      drop.classList.add('drag');
+    });
+  });
+
+  ['dragleave','drop'].forEach(type=>{
+    drop.addEventListener(type,e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      drop.classList.remove('drag');
+    });
+  });
+
+  drop.addEventListener('drop',e=>{
+    addMergeFiles(e.dataTransfer.files || []);
+    renderMergeWorkspaceList();
+  });
+
+  clear.addEventListener('click',()=>{
+    mergeSelectedFiles=[];
+    renderMergeWorkspaceList();
+  });
+
+  run.addEventListener('click',mergeFromDedicatedWorkspace);
+}
+
+function renderMergeWorkspaceList(){
+  const list=document.getElementById('mergeHeroList');
+  const count=document.getElementById('mergeHeroCount');
+  if(!list || !count) return;
+
+  count.textContent=`${mergeSelectedFiles.length} 个`;
+
+  if(!mergeSelectedFiles.length){
+    list.innerHTML='<div class="merge-empty-list">还没有文件，拖进来或点击“添加文件”。</div>';
+    return;
+  }
+
+  list.innerHTML=mergeSelectedFiles.map((file,i)=>`
+    <div class="merge-selected-row">
+      <div>📄</div>
+      <div class="meta">
+        <b title="${esc(file.name)}">${esc(file.name)}</b>
+        <span>${(file.size/1024/1024).toFixed(2)} MB</span>
+      </div>
+      <button type="button" data-merge-hero-remove="${i}" title="移除">×</button>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('[data-merge-hero-remove]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      mergeSelectedFiles.splice(Number(btn.dataset.mergeHeroRemove),1);
+      renderMergeWorkspaceList();
+    });
+  });
+}
+
+async function mergeFromDedicatedWorkspace(){
+  const files=[...mergeSelectedFiles];
+  if(files.length<2){
+    alert('请至少添加 2 个文件。');
+    return;
+  }
+
+  const runBtn=document.getElementById('mergeHeroRun');
+  const success=document.getElementById('mergeHeroSuccess');
+  const successText=document.getElementById('mergeHeroSuccessText');
+  const downloadBtn=document.getElementById('mergeHeroDownloadBtn');
+  const mode=document.getElementById('mergeHeroMode').value;
+
+  runBtn.disabled=true;
+  runBtn.textContent='正在合并…';
+  success?.classList.remove('show');
+  if(downloadBtn) downloadBtn.style.display='none';
+  if(mergeDownloadUrl){
+    URL.revokeObjectURL(mergeDownloadUrl);
+    mergeDownloadUrl=null;
+  }
+
+  try{
+    const outWb=XLSX.utils.book_new();
+    let appendedRows=[];
+    const summary=[];
+
+    for(let index=0; index<files.length; index++){
+      const file=files[index];
+      runBtn.textContent=`处理中 ${index+1}/${files.length}`;
+      const fileWb=await readWB(file,'auto');
+      const fileBase=file.name.replace(/\.[^.]+$/,'');
+
+      if(mode==='onePerFile'){
+        const sh=fileWb.SheetNames[0];
+        const fileRows=XLSX.utils.sheet_to_json(fileWb.Sheets[sh],{defval:'',raw:false});
+        const ws=XLSX.utils.json_to_sheet(fileRows);
+        const sheetName=uniqueSheetName(outWb,fileBase);
+        XLSX.utils.book_append_sheet(outWb,ws,sheetName);
+        summary.push({文件:file.name,原Sheet:sh,输出Sheet:sheetName,行数:fileRows.length});
+      }else if(mode==='allSheets'){
+        for(const sh of fileWb.SheetNames){
+          const fileRows=XLSX.utils.sheet_to_json(fileWb.Sheets[sh],{defval:'',raw:false});
+          const ws=XLSX.utils.json_to_sheet(fileRows);
+          const sheetName=uniqueSheetName(outWb,`${fileBase}_${sh}`);
+          XLSX.utils.book_append_sheet(outWb,ws,sheetName);
+          summary.push({文件:file.name,原Sheet:sh,输出Sheet:sheetName,行数:fileRows.length});
+        }
+      }else{
+        const sh=fileWb.SheetNames[0];
+        const fileRows=XLSX.utils.sheet_to_json(fileWb.Sheets[sh],{defval:'',raw:false})
+          .map(r=>({'来源文件':file.name,'来源Sheet':sh,...r}));
+        appendedRows.push(...fileRows);
+        summary.push({文件:file.name,原Sheet:sh,输出Sheet:'合并结果',行数:fileRows.length});
+      }
+    }
+
+    if(mode==='append'){
+      const ws=XLSX.utils.json_to_sheet(appendedRows);
+      XLSX.utils.book_append_sheet(outWb,ws,'合并结果');
+    }
+
+    // Add a merge summary sheet first when keeping multiple sheets.
+    if(mode!=='append'){
+      const summaryWs=XLSX.utils.json_to_sheet(summary);
+      const summaryName=uniqueSheetName(outWb,'合并说明');
+      XLSX.utils.book_append_sheet(outWb,summaryWs,summaryName);
+      // Move summary sheet to first position.
+      outWb.SheetNames = [summaryName, ...outWb.SheetNames.filter(x=>x!==summaryName)];
+    }
+
+    const filename=`粘一下_多文件合并_${new Date().toISOString().slice(0,10)}.xlsx`;
+
+    // 先生成 Blob。异步任务结束后浏览器可能拦截自动下载，
+    // 所以始终保留一个由用户主动点击的下载按钮。
+    const arrayBuffer=XLSX.write(outWb,{bookType:'xlsx',type:'array'});
+    const blob=new Blob(
+      [arrayBuffer],
+      {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}
+    );
+    mergeDownloadUrl=URL.createObjectURL(blob);
+    mergeDownloadName=filename;
+
+    // 尝试自动下载；若浏览器拦截，用户仍可点击下方按钮。
+    try{
+      const a=document.createElement('a');
+      a.href=mergeDownloadUrl;
+      a.download=filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }catch(e){
+      console.warn('自动下载被浏览器拦截',e);
+    }
+
+    if(successText){
+      successText.textContent=`合并完成：${files.length} 个文件。若没有自动下载，请点击下方按钮。`;
+    }
+    if(downloadBtn) downloadBtn.style.display='inline-flex';
+    success.classList.add('show');
+
+    current=summary;
+    headers=current.length?Object.keys(current[0]):[];
+    $('#mrows').textContent=`${files.length} 文件`;
+    $('#mcols').textContent=mode==='allSheets' ? `${summary.length} Sheets` : (mode==='append' ? '1 Sheet' : `${files.length} Sheets`);
+    $('#mstate').textContent='已完成';
+  }catch(err){
+    console.error(err);
+    alert('合并失败。请检查文件是否损坏，或尝试换一种合并方式。');
+  }finally{
+    runBtn.disabled=false;
+    runBtn.textContent='合并并下载';
+  }
+}
+
 
 function mergeFileKey(file){
   return [file.name,file.size,file.lastModified].join('::');

@@ -4,10 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>粘一下 · 万能数据工作台 v10</title>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js">window.addEventListener('beforeunload',()=>{
-  if(mergeDownloadUrl) URL.revokeObjectURL(mergeDownloadUrl);
-});
-</script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root{
   --bg:#f6f7fb;--card:#fff;--text:#101828;--text2:#344054;--muted:#667085;--line:#e6e8ee;
@@ -398,6 +395,10 @@ let mergeSelectedFiles=[];
 let mergeDownloadUrl=null;
 let mergeDownloadName='';
 
+window.addEventListener('beforeunload',()=>{
+  if(mergeDownloadUrl) URL.revokeObjectURL(mergeDownloadUrl);
+});
+
 const ACTIONS={
  dedupe:{name:'按字段去重',desc:'选择一列作为唯一标识，只保留第一条记录。'},
  filter:{name:'条件筛选',desc:'按字段做包含、等于、为空、数字大小筛选。'},
@@ -427,19 +428,35 @@ function decodeCsvBuffer(buffer, encoding='auto'){
  const utf8=dec('utf-8',true);if(utf8!==null)return utf8;
  return dec('gb18030')||dec('utf-8')||'';
 }
-function readWB(file,forcedEncoding='auto'){return new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>{try{if(/\.csv$/i.test(file.name)){const csv=decodeCsvBuffer(e.target.result,forcedEncoding);res(XLSX.read(csv,{type:'string',raw:false}))}else{res(XLSX.read(new Uint8Array(e.target.result),{type:'array'}))}}catch(err){rej(err)}};r.onerror=rej;r.readAsArrayBuffer(file)})}
+function readWB(file,forcedEncoding='auto'){return new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>{try{if(/\.csv$/i.test(file.name)){const csv=decodeCsvBuffer(e.target.result,forcedEncoding);res(XLSX.read(csv,{type:'string',raw:false}))}else{res(XLSX.read(new Uint8Array(e.target.result),{type:'array',dense:true}))}}catch(err){rej(err)}finally{r.onload=null;r.onerror=null}};r.onerror=()=>rej(r.error||new Error('文件读取失败'));r.readAsArrayBuffer(file)})}
 async function loadFile(file){
  try{
+  // 释放上一个文件的大对象，避免连续上传时内存叠加。
+  wb=null; original=[]; current=[]; headers=[]; history=[];
   currentFile=file;
   const isCsv=/\.csv$/i.test(file.name);
   const encSel=document.getElementById('csvEncoding');
   document.getElementById('encodingWrap').style.display=isCsv?'flex':'none';
+  $('#title').textContent='正在读取文件…';
+  $('#subtitle').textContent=`${file.name} · ${(file.size/1024/1024).toFixed(2)} MB`;
   wb=await readWB(file,isCsv?(encSel?.value||'auto'):'auto');baseName=file.name.replace(/\.[^.]+$/,'');
   original=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:'',raw:false});
-  current=JSON.parse(JSON.stringify(original));headers=current.length?Object.keys(current[0]):[];history=[];
+  // 这里只做数组浅拷贝，避免把整份大文件 JSON stringify 后再复制一遍。
+  // 后续处理步骤都会生成新数组/新对象，因此不会污染 original。
+  current=original.slice();headers=current.length?Object.keys(current[0]):[];history=[];
+  // 单文件后续处理只需要 JSON 数据，尽早释放 workbook。
+  wb=null;
   $('#filebar').classList.add('show');$('#fname').textContent=file.name;$('#fmeta').textContent=`${(file.size/1024/1024).toFixed(2)} MB · ${current.length.toLocaleString()} 行`;
   renderFile();renderPipeline();$('#footer').style.display='flex';$('#title').textContent='文件预览';$('#subtitle').textContent='现在可以连续处理，不需要重新上传。';
- }catch(e){alert('文件读取失败，请确认文件格式。')}
+ }catch(e){
+  console.error('文件读取失败', {name:e?.name,message:e?.message,stack:e?.stack,fileName:file?.name,fileSize:file?.size,fileType:file?.type});
+  wb=null;
+  const sizeMB=((file?.size||0)/1024/1024).toFixed(2);
+  const msg=e?.message||String(e||'未知错误');
+  alert(`文件读取失败：${msg}\n\n文件：${file?.name||'未知'}\n大小：${sizeMB} MB\n\n如果小文件正常而这个文件失败，通常是浏览器解析大文件时内存不足，不一定是文件格式错误。`);
+  $('#title').textContent='文件读取失败';
+  $('#subtitle').textContent='请查看 Console 中的真实错误信息。';
+ }
 }
 function renderFile(){
  $('#mrows').textContent=current.length.toLocaleString()+' 行';$('#mcols').textContent=(current.length?Object.keys(current[0]).length:0)+' 列';$('#mstate').textContent=history.length?`已处理 ${history.length} 步`:'原始数据';
@@ -504,7 +521,8 @@ $('#apply').onclick=async()=>{
    await mergeMultipleFiles();
    return;
  }
- const before=JSON.parse(JSON.stringify(current));let detail='';
+ // 当前所有处理步骤都会重新赋值 current，不会原地修改旧数组；撤销时直接保留上一版引用即可。
+ const before=current;let detail='';
  if(act==='dedupe'){const c=$('#c1').value,seen=new Set();current=current.filter(r=>{const k=String(r[c]??'');if(seen.has(k))return false;seen.add(k);return true});detail=`按「${c}」去重`}
  if(act==='filter'){const c=$('#c1').value,m=$('#mode').value,v=$('#v1').value;current=current.filter(r=>{const x=String(r[c]??'');if(m==='contains')return x.includes(v);if(m==='equals')return x===v;if(m==='notempty')return x.trim()!=='';if(m==='empty')return x.trim()==='';if(m==='gt')return Number(x)>Number(v);if(m==='lt')return Number(x)<Number(v)});detail=`筛选「${c}」`}
  if(act==='keepcols'){const ks=[...$('#multi').selectedOptions].map(o=>o.value);current=current.map(r=>Object.fromEntries(ks.map(k=>[k,r[k]])));headers=ks;detail=`保留 ${ks.length} 个字段`}
@@ -1128,7 +1146,7 @@ async function mergeMultipleFiles(){
 
 function renderPipeline(){const box=$('#pipeline');if(!history.length){box.innerHTML='<div class="empty-pipe">你做的每一步都会记录在这里。<br>可以随时撤销上一步。</div>';$('#undo').disabled=true;return}box.innerHTML=history.map((h,i)=>`<div class="step ${i===history.length-1?'current':''}"><b>${i+1}. ${esc(h.label)}</b><span>${esc(h.detail)}</span></div>`).join('');$('#undo').disabled=false}
 $('#undo').onclick=()=>{if(!history.length)return;const last=history.pop();current=last.data;headers=current.length?Object.keys(current[0]):[];renderFile();renderPipeline();$('#title').textContent='已撤销上一步';$('#subtitle').textContent='可以继续处理。'};
-$('#reset').onclick=()=>{current=JSON.parse(JSON.stringify(original));headers=current.length?Object.keys(current[0]):[];history=[];renderFile();renderPipeline();$('#title').textContent='已恢复原始数据';$('#subtitle').textContent='所有处理步骤已清空。'};
+$('#reset').onclick=()=>{current=original.slice();headers=current.length?Object.keys(current[0]):[];history=[];renderFile();renderPipeline();$('#title').textContent='已恢复原始数据';$('#subtitle').textContent='所有处理步骤已清空。'};
 $('#xlsx').onclick=()=>downloadXLSX(current,(baseName||'粘一下')+'_处理结果.xlsx');
 $('#csv').onclick=()=>downloadCSV(current,(baseName||'粘一下')+'_处理结果.csv');
 function downloadXLSX(rows,name){if(!rows.length)return;const ws=XLSX.utils.json_to_sheet(rows),w=XLSX.utils.book_new();XLSX.utils.book_append_sheet(w,ws,'处理结果');XLSX.writeFile(w,name)}

@@ -244,7 +244,7 @@ input:focus,select:focus,textarea:focus{border-color:#b0aaff;box-shadow:0 0 0 3p
 
   <section class="hero">
     <h2>小数据直接粘，大数据直接传。</h2>
-    <p>临时名单、链接、SQL 用文本处理；Excel / CSV 用文件处理。文件模式还支持多个文件合并到同一个 Excel 的不同 Sheet。</p>
+    <p>临时名单、链接、SQL 用文本处理；Excel / CSV 用文件处理。文件模式支持多文件合并，也支持把同一个文件按行数或指定列拆成 Excel 的不同 Sheet。</p>
     <div class="mode-tabs">
       <button class="mode-tab active" data-mode="fileMode">📄 文件处理</button>
       <button class="mode-tab" data-mode="textMode">⌨️ 文本处理</button>
@@ -281,6 +281,7 @@ input:focus,select:focus,textarea:focus{border-color:#b0aaff;box-shadow:0 0 0 3p
           <button class="file-action" data-act="splitcol"><b>⇥ 拆列</b><small>按分隔符拆成多列</small></button>
           <button class="file-action" data-act="mergecols"><b>⇤ 合并列</b><small>多列拼成一列</small></button>
           <button class="file-action" data-act="group"><b>Σ 分组统计</b><small>计数 / 去重 / 求和</small></button>
+          <button class="file-action" data-act="splitsheets"><b>▦ 拆分 Sheet</b><small>按行数 / 指定列分组</small></button>
           <button class="file-action" data-act="replace"><b>↺ 批量替换</b><small>一列里查找并替换</small></button>
           <button class="file-action" data-act="quality"><b>✓ 数据检查</b><small>空值 / 重复 / 异常</small></button>
           <button class="file-action" data-act="mergefiles"><b>🗂 多文件合并</b><small>合到一个 Excel 的不同 Sheet</small></button>
@@ -411,11 +412,12 @@ const ACTIONS={
  splitcol:{name:'拆列',desc:'按分隔符把一列拆成多列。'},
  mergecols:{name:'合并列',desc:'把多列拼接成一个新字段。'},
  group:{name:'分组统计',desc:'按某列分组后计数、去重计数、求和或平均。'},
+ splitsheets:{name:'拆分 Sheet',desc:'把当前文件按固定行数，或按指定列的值分组拆成同一个 Excel 的多个 Sheet。'},
  replace:{name:'批量替换',desc:'对某一列统一查找并替换内容。'},
  quality:{name:'数据检查',desc:'检查空值、重复整行和重复主键。'},
  mergefiles:{name:'多文件合并',desc:'独立多文件工作区：拖入或分批添加多个 Excel / CSV，再合并下载。'}
 };
-const SEARCH_ALIASES={'去重':'dedupe','重复':'dedupe','筛选':'filter','过滤':'filter','保留字段':'keepcols','删除字段':'keepcols','拆列':'splitcol','分列':'splitcol','合并列':'mergecols','拼接列':'mergecols','统计':'group','聚合':'group','求和':'group','平均':'group','替换':'replace','检查':'quality','体检':'quality','空值':'quality','多文件':'mergefiles','合并文件':'mergefiles','文件合并':'mergefiles','不同sheet':'mergefiles','多个excel':'mergefiles'};
+const SEARCH_ALIASES={'去重':'dedupe','重复':'dedupe','筛选':'filter','过滤':'filter','保留字段':'keepcols','删除字段':'keepcols','拆列':'splitcol','分列':'splitcol','合并列':'mergecols','拼接列':'mergecols','统计':'group','聚合':'group','求和':'group','平均':'group','拆分sheet':'splitsheets','拆sheet':'splitsheets','按行拆分':'splitsheets','按列分组':'splitsheets','分组拆分':'splitsheets','替换':'replace','检查':'quality','体检':'quality','空值':'quality','多文件':'mergefiles','合并文件':'mergefiles','文件合并':'mergefiles','不同sheet':'mergefiles','多个excel':'mergefiles'};
 
 $('#file').onchange=e=>e.target.files[0]&&loadFile(e.target.files[0]);
 const drop=$('#drop');
@@ -827,6 +829,26 @@ function buildConfig(act){
  if(act==='splitcol')html=`<div class="field"><label>要拆的字段</label><select id="c1">${opts}</select></div><div class="field"><label>分隔符</label><input id="v1" value="-"></div><div class="field"><label>新列前缀</label><input id="v2" value="拆分列"></div>`;
  if(act==='mergecols')html=`<div class="field" style="grid-column:1/-1"><label>要合并的字段（可多选）</label><select id="multi" multiple style="min-height:120px">${H.map(h=>`<option>${esc(h)}</option>`).join('')}</select></div><div class="field"><label>分隔符</label><input id="v1" value="-"></div><div class="field"><label>新字段名</label><input id="v2" value="合并结果"></div>`;
  if(act==='group')html=`<div class="field"><label>分组字段</label><select id="c1">${opts}</select></div><div class="field"><label>统计方式</label><select id="mode"><option value="count">行数</option><option value="distinct">去重计数</option><option value="sum">求和</option><option value="avg">平均值</option></select></div><div class="field"><label>统计字段</label><select id="c2">${opts}</select></div>`;
+ if(act==='splitsheets')html=`
+   <div class="field">
+     <label>拆分方式</label>
+     <select id="splitSheetMode">
+       <option value="rows">按行数拆分</option>
+       <option value="column">按指定列的值分组</option>
+     </select>
+   </div>
+   <div class="field" id="splitRowsWrap">
+     <label>每个 Sheet 数据行数</label>
+     <input id="splitRows" type="number" min="1" max="1048575" step="1" value="50000">
+   </div>
+   <div class="field" id="splitGroupWrap">
+     <label>分组字段</label>
+     <select id="splitGroupCol">${opts}</select>
+   </div>
+   <div class="field" style="grid-column:1/-1">
+     <label>说明</label>
+     <div style="font-size:10px;color:var(--muted);line-height:1.65;padding:8px 10px;border:1px solid var(--line);border-radius:11px;background:#fff">按行数：每 N 行进入一个 Sheet；按列值：相同值进入同一个 Sheet，空值进入「空值」。单个 Sheet 超过 Excel 上限时会自动继续拆分。</div>
+   </div>`;
  if(act==='replace')html=`<div class="field"><label>处理字段</label><select id="c1">${opts}</select></div><div class="field"><label>查找内容</label><input id="v1"></div><div class="field"><label>替换为</label><input id="v2" placeholder="留空则删除"></div>`;
  if(act==='quality')html=`<div class="field"><label>主键字段</label><select id="c1">${opts}</select></div><div class="field" style="grid-column:span 2"><label>检查内容</label><input value="空值、重复整行、重复主键" disabled></div>`;
  if(act==='mergefiles')html=`
@@ -852,6 +874,20 @@ function buildConfig(act){
    </div>
  `;
  $('#cfgGrid').innerHTML=html;
+ if(act==='splitsheets'){
+   const mode=document.getElementById('splitSheetMode');
+   const rowsWrap=document.getElementById('splitRowsWrap');
+   const groupWrap=document.getElementById('splitGroupWrap');
+   const sync=()=>{
+     const byRows=mode.value==='rows';
+     rowsWrap.style.opacity=byRows?'1':'.45';
+     groupWrap.style.opacity=byRows?'.45':'1';
+     document.getElementById('splitRows').disabled=!byRows;
+     document.getElementById('splitGroupCol').disabled=byRows;
+   };
+   mode.addEventListener('change',sync);
+   sync();
+ }
 
 }
 $('#cancelCfg').onclick=()=>{$('#config').classList.remove('show');$('#title').textContent='文件预览';$('#subtitle').textContent='继续选择下一步处理。'};
@@ -859,6 +895,10 @@ $('#apply').onclick=async()=>{
  if(!activeAction)return;const act=activeAction;
  if(act==='mergefiles'){
    await mergeMultipleFiles();
+   return;
+ }
+ if(act==='splitsheets'){
+   await splitCurrentFileIntoSheets();
    return;
  }
  if(largeCsvMode){
@@ -890,6 +930,456 @@ function uniqueSheetName(wb,name){
     out=safeSheetName(base.slice(0,31-suffix.length)+suffix);
   }
   return out;
+}
+
+/* ---------- SPLIT ONE FILE INTO MULTIPLE SHEETS ---------- */
+const EXCEL_MAX_DATA_ROWS=1048575; // Excel 1,048,576 rows including the header.
+const MAX_SPLIT_SHEETS=5000;
+
+function safeSplitSheetName(name){
+  let x=String(name??'').replace(/[\\\/\?\*\[\]:]/g,'_').replace(/[\u0000-\u001f]/g,' ').trim();
+  x=x.replace(/^'+|'+$/g,'').trim();
+  if(!x) x='空值';
+  return x.slice(0,31) || 'Sheet';
+}
+function uniqueSheetNameFromSet(used,name){
+  const base=safeSplitSheetName(name);
+  let out=base,i=2;
+  while(used.has(out)){
+    const suffix='_'+i++;
+    out=(base.slice(0,31-suffix.length)+suffix).slice(0,31);
+  }
+  used.add(out);
+  return out;
+}
+function rowSplitSheetNames(totalRows,rowsPerSheet){
+  const used=new Set(),names=[];
+  const count=Math.max(1,Math.ceil(totalRows/rowsPerSheet));
+  if(count>MAX_SPLIT_SHEETS) throw new Error(`将生成 ${count.toLocaleString()} 个 Sheet，超过安全上限 ${MAX_SPLIT_SHEETS.toLocaleString()}。请增大“每个 Sheet 数据行数”。`);
+  for(let i=0;i<count;i++){
+    const start=i*rowsPerSheet+1;
+    const end=Math.min(totalRows,(i+1)*rowsPerSheet);
+    names.push(uniqueSheetNameFromSet(used,totalRows?`${start}-${end}`:`Sheet1`));
+  }
+  return names;
+}
+function splitRowsByColumn(rows,groupCol){
+  const groups=new Map();
+  for(const row of rows){
+    const key=String(row[groupCol]??'').trim();
+    if(!groups.has(key)) groups.set(key,[]);
+    groups.get(key).push(row);
+  }
+  return groups;
+}
+function normalSplitDownload(mode,rowsPerSheet,groupCol){
+  if(!current.length){alert('当前没有可拆分的数据。');return}
+  const outWb=XLSX.utils.book_new();
+  const used=new Set();
+  let sheetCount=0;
+  const cols=headers.length?headers:Object.keys(current[0]||{});
+  if(mode==='rows'){
+    const n=Math.max(1,Math.min(EXCEL_MAX_DATA_ROWS,rowsPerSheet));
+    const names=rowSplitSheetNames(current.length,n);
+    for(let i=0;i<current.length;i+=n){
+      const part=current.slice(i,i+n);
+      const ws=XLSX.utils.json_to_sheet(part,{header:cols});
+      XLSX.utils.book_append_sheet(outWb,ws,names[sheetCount++]);
+    }
+  }else{
+    if(!groupCol){alert('请选择分组字段。');return}
+    const groups=splitRowsByColumn(current,groupCol);
+    for(const [key,rows] of groups){
+      for(let offset=0,partNo=1;offset<rows.length;offset+=EXCEL_MAX_DATA_ROWS,partNo++){
+        if(sheetCount>=MAX_SPLIT_SHEETS) throw new Error(`Sheet 数量超过 ${MAX_SPLIT_SHEETS.toLocaleString()}，请换一个分组字段。`);
+        const part=rows.slice(offset,offset+EXCEL_MAX_DATA_ROWS);
+        const base=key||'空值';
+        const name=uniqueSheetNameFromSet(used,partNo===1?base:`${base}_${partNo}`);
+        const ws=XLSX.utils.json_to_sheet(part,{header:cols});
+        XLSX.utils.book_append_sheet(outWb,ws,name);
+        sheetCount++;
+      }
+    }
+  }
+  if(!outWb.SheetNames.length){alert('没有生成任何 Sheet。');return}
+  const filename=`${baseName||'粘一下'}_拆分Sheet.xlsx`;
+  XLSX.writeFile(outWb,filename);
+  $('#config').classList.remove('show');
+  $('#title').textContent='拆分完成';
+  $('#subtitle').textContent=`已生成 ${outWb.SheetNames.length.toLocaleString()} 个 Sheet，并开始下载 ${filename}`;
+}
+
+function xmlEsc(v){
+  return String(v??'')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+}
+function excelColName(index){
+  let n=index+1,s='';
+  while(n>0){const r=(n-1)%26;s=String.fromCharCode(65+r)+s;n=Math.floor((n-1)/26)}
+  return s;
+}
+function xlsxRowXml(row,cols,rowNum,forceAll=false){
+  let cells='';
+  for(let i=0;i<cols.length;i++){
+    let value=row[cols[i]];
+    if(value===undefined||value===null) value='';
+    value=String(value);
+    if(!forceAll && value==='') continue;
+    const ref=excelColName(i)+rowNum;
+    cells+=`<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${xmlEsc(value)}</t></is></c>`;
+  }
+  return `<row r="${rowNum}">${cells}</row>`;
+}
+
+const CRC32_TABLE=(()=>{
+  const t=new Uint32Array(256);
+  for(let n=0;n<256;n++){
+    let c=n;
+    for(let k=0;k<8;k++) c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);
+    t[n]=c>>>0;
+  }
+  return t;
+})();
+function crc32Update(crc,bytes){
+  let c=crc>>>0;
+  for(let i=0;i<bytes.length;i++) c=CRC32_TABLE[(c^bytes[i])&255]^(c>>>8);
+  return c>>>0;
+}
+function u16le(v){const b=new Uint8Array(2);new DataView(b.buffer).setUint16(0,v,true);return b}
+function u32le(v){const b=new Uint8Array(4);new DataView(b.buffer).setUint32(0,v>>>0,true);return b}
+function concatBytes(parts){
+  const len=parts.reduce((sum,p)=>sum+p.length,0),out=new Uint8Array(len);let offset=0;
+  for(const p of parts){out.set(p,offset);offset+=p.length}
+  return out;
+}
+class ZipStreamWriter{
+  constructor(writable){this.writable=writable;this.offset=0;this.entries=[];this.encoder=new TextEncoder()}
+  async raw(bytes){
+    if(typeof bytes==='string') bytes=this.encoder.encode(bytes);
+    await this.writable.write(bytes);this.offset+=bytes.length;
+    if(this.offset>0xFFFFFFFF) throw new Error('生成的 XLSX 超过 ZIP32 4GB 上限。请增大每个 Sheet 行数无效时，改用 CSV 输出。');
+  }
+  async begin(name){
+    const nameBytes=this.encoder.encode(name);
+    const localOffset=this.offset;
+    let compressor=null;
+    try{if(typeof CompressionStream!=='undefined') compressor=new CompressionStream('deflate-raw')}catch(e){compressor=null}
+    const method=compressor?8:0;
+    const header=concatBytes([
+      u32le(0x04034b50),u16le(20),u16le(0x0008),u16le(method),u16le(0),u16le(0),
+      u32le(0),u32le(0),u32le(0),u16le(nameBytes.length),u16le(0),nameBytes
+    ]);
+    await this.raw(header);
+    const state={name,nameBytes,localOffset,method,crc:0xFFFFFFFF,size:0,compressedSize:0};
+    if(method===8){
+      const input=compressor.writable.getWriter();
+      const output=compressor.readable.getReader();
+      const pump=(async()=>{
+        while(true){
+          const {value,done}=await output.read();
+          if(done) break;
+          state.compressedSize+=value.length;
+          await this.raw(value);
+        }
+      })();
+      return {
+        write:async data=>{
+          const bytes=typeof data==='string'?this.encoder.encode(data):data;
+          state.crc=crc32Update(state.crc,bytes);state.size+=bytes.length;
+          if(state.size>0xFFFFFFFF) throw new Error(`XLSX 内单个 ZIP 项超过 4GB：${name}`);
+          await input.write(bytes);
+        },
+        end:async()=>{
+          await input.close();await pump;
+          const crc=(state.crc^0xFFFFFFFF)>>>0;
+          await this.raw(concatBytes([u32le(0x08074b50),u32le(crc),u32le(state.compressedSize),u32le(state.size)]));
+          this.entries.push({name:state.name,nameBytes:state.nameBytes,localOffset:state.localOffset,method:state.method,crc,size:state.size,compressedSize:state.compressedSize});
+        }
+      };
+    }
+    return {
+      write:async data=>{
+        const bytes=typeof data==='string'?this.encoder.encode(data):data;
+        state.crc=crc32Update(state.crc,bytes);state.size+=bytes.length;state.compressedSize+=bytes.length;
+        if(state.size>0xFFFFFFFF) throw new Error(`XLSX 内单个 ZIP 项超过 4GB：${name}`);
+        await this.raw(bytes);
+      },
+      end:async()=>{
+        const crc=(state.crc^0xFFFFFFFF)>>>0;
+        await this.raw(concatBytes([u32le(0x08074b50),u32le(crc),u32le(state.compressedSize),u32le(state.size)]));
+        this.entries.push({name:state.name,nameBytes:state.nameBytes,localOffset:state.localOffset,method:state.method,crc,size:state.size,compressedSize:state.compressedSize});
+      }
+    };
+  }
+  async addText(name,text){const e=await this.begin(name);await e.write(text);await e.end()}
+  async finalize(){
+    if(this.entries.length>65535) throw new Error('ZIP 项数量超过 65535，无法生成标准 XLSX。');
+    const cdOffset=this.offset;
+    for(const e of this.entries){
+      const h=concatBytes([
+        u32le(0x02014b50),u16le(20),u16le(20),u16le(0x0008),u16le(e.method),u16le(0),u16le(0),
+        u32le(e.crc),u32le(e.compressedSize),u32le(e.size),u16le(e.nameBytes.length),u16le(0),u16le(0),
+        u16le(0),u16le(0),u32le(0),u32le(e.localOffset),e.nameBytes
+      ]);
+      await this.raw(h);
+    }
+    const cdSize=this.offset-cdOffset;
+    if(cdOffset>0xFFFFFFFF||cdSize>0xFFFFFFFF) throw new Error('生成的 XLSX 超过 ZIP32 4GB 上限。');
+    await this.raw(concatBytes([
+      u32le(0x06054b50),u16le(0),u16le(0),u16le(this.entries.length),u16le(this.entries.length),
+      u32le(cdSize),u32le(cdOffset),u16le(0)
+    ]));
+  }
+}
+
+function xlsxContentTypes(sheetCount){
+  let sheets='';
+  for(let i=1;i<=sheetCount;i++) sheets+=`<Override PartName="/xl/worksheets/sheet${i}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`;
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${sheets}<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>`;
+}
+function xlsxRootRels(){
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>`;
+}
+function xlsxWorkbookXml(sheetNames){
+  const sheets=sheetNames.map((name,i)=>`<sheet name="${xmlEsc(name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('');
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets}</sheets></workbook>`;
+}
+function xlsxWorkbookRels(sheetCount){
+  let rels='';
+  for(let i=1;i<=sheetCount;i++) rels+=`<Relationship Id="rId${i}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i}.xml"/>`;
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rels}</Relationships>`;
+}
+function xlsxCoreXml(){
+  const now=new Date().toISOString();
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:creator>粘一下</dc:creator><cp:lastModifiedBy>粘一下</cp:lastModifiedBy><dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified></cp:coreProperties>`;
+}
+function xlsxAppXml(){
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>粘一下</Application></Properties>`;
+}
+async function writeXlsxStaticParts(zip,sheetNames){
+  await zip.addText('[Content_Types].xml',xlsxContentTypes(sheetNames.length));
+  await zip.addText('_rels/.rels',xlsxRootRels());
+  await zip.addText('xl/workbook.xml',xlsxWorkbookXml(sheetNames));
+  await zip.addText('xl/_rels/workbook.xml.rels',xlsxWorkbookRels(sheetNames.length));
+  await zip.addText('docProps/core.xml',xlsxCoreXml());
+  await zip.addText('docProps/app.xml',xlsxAppXml());
+}
+function sheetOpenXml(cols){
+  const headerObj=Object.fromEntries(cols.map(col=>[col,col]));
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${xlsxRowXml(headerObj,cols,1,true)}`;
+}
+const SHEET_CLOSE_XML='</sheetData></worksheet>';
+
+async function pickSplitXlsxHandle(){
+  if(!('showSaveFilePicker' in window)) return null;
+  try{
+    return await window.showSaveFilePicker({
+      suggestedName:`${baseName||'粘一下'}_拆分Sheet.xlsx`,
+      types:[{description:'Excel 工作簿',accept:{'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx']}}]
+    });
+  }catch(err){if(err&&err.name==='AbortError') return null;throw err}
+}
+
+async function streamLargeCsvRowSplit(saveHandle,rowsPerSheet){
+  const cols=largeCsvState.outputHeaders;
+  if(cols.length>16384) throw new Error(`当前有 ${cols.length.toLocaleString()} 列，超过 Excel 单 Sheet 16,384 列上限。`);
+  const names=rowSplitSheetNames(largeCsvState.rowCount,rowsPerSheet);
+  const writable=await saveHandle.createWritable();
+  const zip=new ZipStreamWriter(writable);
+  let currentEntry=null,sheetIndex=0,dataInSheet=0,totalWritten=0,failed=false;
+  const states=makeLargeOpStates(largeCsvState.ops);
+  try{
+    await writeXlsxStaticParts(zip,names);
+    currentEntry=await zip.begin('xl/worksheets/sheet1.xml');
+    await currentEntry.write(sheetOpenXml(cols));
+    await new Promise((resolve,reject)=>{
+      Papa.parse(largeCsvState.file,{
+        header:true,encoding:largeCsvState.encoding,skipEmptyLines:'greedy',chunkSize:2*1024*1024,worker:false,
+        chunk:(results,parser)=>{
+          if(failed) return;
+          parser.pause();
+          (async()=>{
+            try{
+              let buffer='';
+              const flush=async()=>{if(buffer){await currentEntry.write(buffer);buffer=''}};
+              for(const raw of results.data){
+                const row=applyLargeOpsToRow(raw,largeCsvState.ops,states);
+                if(row===null) continue;
+                if(dataInSheet>=rowsPerSheet){
+                  await flush();
+                  await currentEntry.write(SHEET_CLOSE_XML);await currentEntry.end();
+                  sheetIndex++;dataInSheet=0;
+                  currentEntry=await zip.begin(`xl/worksheets/sheet${sheetIndex+1}.xml`);
+                  await currentEntry.write(sheetOpenXml(cols));
+                }
+                dataInSheet++;totalWritten++;
+                buffer+=xlsxRowXml(row,cols,dataInSheet+1);
+                if(buffer.length>=1024*1024) await flush();
+              }
+              await flush();
+              const cursor=Number(results.meta&&results.meta.cursor)||0;
+              const pct=Math.min(99,Math.floor(cursor/largeCsvState.file.size*100));
+              $('#title').textContent=`正在拆分大 CSV… ${pct}%`;
+              $('#subtitle').textContent=`已写入 ${totalWritten.toLocaleString()} 行 · 当前第 ${sheetIndex+1}/${names.length} 个 Sheet`;
+              parser.resume();
+            }catch(err){failed=true;try{parser.abort()}catch(e){};reject(err)}
+          })();
+        },
+        complete:()=>{if(!failed)resolve()},
+        error:err=>{if(!failed){failed=true;reject(err)}}
+      });
+    });
+    if(currentEntry){await currentEntry.write(SHEET_CLOSE_XML);await currentEntry.end()}
+    if(sheetIndex+1!==names.length) throw new Error(`实际生成 Sheet 数 ${sheetIndex+1} 与预期 ${names.length} 不一致，请重新尝试。`);
+    await zip.finalize();await writable.close();
+    return {sheetCount:names.length,rowCount:totalWritten};
+  }catch(err){
+    try{await writable.abort()}catch(e){}
+    throw err;
+  }
+}
+
+async function appendOpfsText(dir,meta,text,encoder){
+  if(!text) return;
+  const bytes=encoder.encode(text);
+  const fileHandle=await dir.getFileHandle(meta.tempFile,{create:true});
+  const writable=await fileHandle.createWritable({keepExistingData:true});
+  try{
+    await writable.seek(meta.bytes||0);await writable.write(bytes);await writable.close();
+    meta.bytes=(meta.bytes||0)+bytes.length;
+  }catch(err){try{await writable.abort()}catch(e){};throw err}
+}
+
+async function spoolLargeCsvByColumn(groupCol,tempDir){
+  const cols=largeCsvState.outputHeaders;
+  const states=makeLargeOpStates(largeCsvState.ops),encoder=new TextEncoder();
+  const groups=new Map(),parts=[],usedNames=new Set();
+  let totalRows=0,failed=false;
+  await new Promise((resolve,reject)=>{
+    Papa.parse(largeCsvState.file,{
+      header:true,encoding:largeCsvState.encoding,skipEmptyLines:'greedy',chunkSize:2*1024*1024,worker:false,
+      chunk:(results,parser)=>{
+        if(failed)return;
+        parser.pause();
+        (async()=>{
+          try{
+            const buffers=new Map();
+            const touched=new Map();
+            for(const raw of results.data){
+              const row=applyLargeOpsToRow(raw,largeCsvState.ops,states);
+              if(row===null) continue;
+              totalRows++;
+              const key=String(row[groupCol]??'').trim();
+              let group=groups.get(key);
+              if(!group){group={key,display:key||'空值',count:0,parts:[]};groups.set(key,group)}
+              const partIndex=Math.floor(group.count/EXCEL_MAX_DATA_ROWS);
+              let meta=group.parts[partIndex];
+              if(!meta){
+                if(parts.length>=MAX_SPLIT_SHEETS) throw new Error(`分组后 Sheet 数超过 ${MAX_SPLIT_SHEETS.toLocaleString()}，请换一个分组字段。`);
+                const base=partIndex===0?group.display:`${group.display}_${partIndex+1}`;
+                meta={groupKey:key,groupDisplay:group.display,partIndex,rows:0,bytes:0,tempFile:`part_${String(parts.length+1).padStart(6,'0')}.xmlfrag`,sheetName:uniqueSheetNameFromSet(usedNames,base)};
+                group.parts[partIndex]=meta;parts.push(meta);
+              }
+              meta.rows++;group.count++;
+              buffers.set(meta.tempFile,(buffers.get(meta.tempFile)||'')+xlsxRowXml(row,cols,meta.rows+1));
+              touched.set(meta.tempFile,meta);
+            }
+            for(const [tempFile,meta] of touched){
+              const text=buffers.get(tempFile);
+              if(text) await appendOpfsText(tempDir,meta,text,encoder);
+            }
+            const cursor=Number(results.meta&&results.meta.cursor)||0;
+            const pct=Math.min(69,Math.floor(cursor/largeCsvState.file.size*70));
+            $('#title').textContent=`正在按「${groupCol}」分组… ${pct}%`;
+            $('#subtitle').textContent=`已扫描 ${totalRows.toLocaleString()} 行 · ${groups.size.toLocaleString()} 个分组`;
+            parser.resume();
+          }catch(err){failed=true;try{parser.abort()}catch(e){};reject(err)}
+        })();
+      },
+      complete:()=>{if(!failed)resolve()},
+      error:err=>{if(!failed){failed=true;reject(err)}}
+    });
+  });
+  parts.sort((a,b)=>a.groupDisplay.localeCompare(b.groupDisplay,'zh-CN',{numeric:true})||a.partIndex-b.partIndex);
+  return {parts,totalRows,groupCount:groups.size};
+}
+
+async function packageOpfsPartsToXlsx(saveHandle,tempDir,parts,cols,totalRows){
+  const sheetNames=parts.map(part=>part.sheetName);
+  const writable=await saveHandle.createWritable();
+  const zip=new ZipStreamWriter(writable);
+  let packaged=0;
+  try{
+    await writeXlsxStaticParts(zip,sheetNames);
+    for(let i=0;i<parts.length;i++){
+      const meta=parts[i];
+      const entry=await zip.begin(`xl/worksheets/sheet${i+1}.xml`);
+      await entry.write(sheetOpenXml(cols));
+      const file=await (await tempDir.getFileHandle(meta.tempFile)).getFile();
+      const reader=file.stream().getReader();
+      while(true){const {value,done}=await reader.read();if(done)break;await entry.write(value)}
+      await entry.write(SHEET_CLOSE_XML);await entry.end();
+      packaged+=meta.rows;
+      const pct=70+Math.floor((i+1)/parts.length*29);
+      $('#title').textContent=`正在生成 Excel… ${Math.min(99,pct)}%`;
+      $('#subtitle').textContent=`已写入 ${i+1}/${parts.length} 个 Sheet · ${packaged.toLocaleString()}/${totalRows.toLocaleString()} 行`;
+    }
+    await zip.finalize();await writable.close();
+  }catch(err){try{await writable.abort()}catch(e){};throw err}
+}
+
+async function streamLargeCsvColumnSplit(saveHandle,groupCol){
+  if(!largeCsvState.outputHeaders.includes(groupCol)) throw new Error(`当前处理结果里找不到分组字段「${groupCol}」。`);
+  if(largeCsvState.outputHeaders.length>16384) throw new Error(`当前有 ${largeCsvState.outputHeaders.length.toLocaleString()} 列，超过 Excel 单 Sheet 16,384 列上限。`);
+  if(!navigator.storage?.getDirectory) throw new Error('当前浏览器不支持大文件分组所需的临时磁盘空间。请使用最新版 Chrome / Edge。');
+  const root=await navigator.storage.getDirectory();
+  const tempName=`zhan_split_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+  const tempDir=await root.getDirectoryHandle(tempName,{create:true});
+  try{
+    const result=await spoolLargeCsvByColumn(groupCol,tempDir);
+    if(!result.parts.length) throw new Error('没有可写入的数据。');
+    await packageOpfsPartsToXlsx(saveHandle,tempDir,result.parts,largeCsvState.outputHeaders,result.totalRows);
+    return {sheetCount:result.parts.length,rowCount:result.totalRows,groupCount:result.groupCount};
+  }finally{
+    try{await root.removeEntry(tempName,{recursive:true})}catch(e){console.warn('临时文件清理失败',e)}
+  }
+}
+
+async function splitCurrentFileIntoSheets(){
+  const mode=document.getElementById('splitSheetMode')?.value||'rows';
+  const rowsPerSheet=Math.max(1,Math.min(EXCEL_MAX_DATA_ROWS,Number(document.getElementById('splitRows')?.value)||50000));
+  const groupCol=document.getElementById('splitGroupCol')?.value||'';
+  if(mode==='column'&&!groupCol){alert('请选择分组字段。');return}
+  const applyBtn=$('#apply');
+  applyBtn.disabled=true;applyBtn.textContent='正在拆分…';
+  try{
+    if(!largeCsvMode){
+      normalSplitDownload(mode,rowsPerSheet,groupCol);
+      return;
+    }
+    if(typeof Papa==='undefined') throw new Error('Papa Parse 未加载，无法处理大 CSV。');
+    const saveHandle=await pickSplitXlsxHandle();
+    if(!saveHandle){
+      if(!('showSaveFilePicker' in window)) throw new Error('大 CSV 拆分为多 Sheet 需要 Chrome / Edge 的“直接保存到磁盘”能力。');
+      return;
+    }
+    let result;
+    if(mode==='rows') result=await streamLargeCsvRowSplit(saveHandle,rowsPerSheet);
+    else result=await streamLargeCsvColumnSplit(saveHandle,groupCol);
+    $('#config').classList.remove('show');
+    $('#title').textContent='拆分完成';
+    $('#subtitle').textContent=mode==='rows'
+      ?`已将 ${result.rowCount.toLocaleString()} 行拆成 ${result.sheetCount.toLocaleString()} 个 Sheet，并直接保存到磁盘。`
+      :`已按「${groupCol}」的 ${result.groupCount.toLocaleString()} 个值分组，共生成 ${result.sheetCount.toLocaleString()} 个 Sheet，并直接保存到磁盘。`;
+  }catch(err){
+    console.error('拆分 Sheet 失败',err);
+    alert(`拆分 Sheet 失败：${err?.message||err}`);
+    $('#title').textContent='拆分失败';
+    $('#subtitle').textContent=err?.message||String(err);
+  }finally{
+    applyBtn.disabled=false;applyBtn.textContent='应用这一步';
+  }
 }
 
 

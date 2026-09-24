@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>粘一下 · 万能数据工作台 v10</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <style>
 :root{
   --bg:#f6f7fb;--card:#fff;--text:#101828;--text2:#344054;--muted:#667085;--line:#e6e8ee;
@@ -391,6 +392,10 @@ $$('.mode-tab').forEach(b=>b.onclick=()=>{
 
 /* ---------- FILE MODE ---------- */
 let wb=null, original=[], current=[], headers=[], history=[], activeAction=null, baseName='', currentFile=null;
+const LARGE_CSV_THRESHOLD=80*1024*1024;
+let largeCsvMode=false;
+let largeCsvState={file:null,encoding:'utf-8',rowCount:0,sourceHeaders:[],outputHeaders:[],preview:[],ops:[]};
+
 let mergeSelectedFiles=[];
 let mergeDownloadUrl=null;
 let mergeDownloadName='';
@@ -429,6 +434,330 @@ function decodeCsvBuffer(buffer, encoding='auto'){
  return dec('gb18030')||dec('utf-8')||'';
 }
 function readWB(file,forcedEncoding='auto'){return new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>{try{if(/\.csv$/i.test(file.name)){const csv=decodeCsvBuffer(e.target.result,forcedEncoding);res(XLSX.read(csv,{type:'string',raw:false}))}else{res(XLSX.read(new Uint8Array(e.target.result),{type:'array',dense:true}))}}catch(err){rej(err)}finally{r.onload=null;r.onerror=null}};r.onerror=()=>rej(r.error||new Error('文件读取失败'));r.readAsArrayBuffer(file)})}
+
+function resetLargeCsvState(){
+  largeCsvMode=false;
+  largeCsvState={file:null,encoding:'utf-8',rowCount:0,sourceHeaders:[],outputHeaders:[],preview:[],ops:[]};
+}
+
+async function resolveCsvEncoding(file,forced='auto'){
+  if(forced && forced!=='auto') return forced;
+  return await detectCsvEncoding(file);
+}
+
+function largeOpFromUI(act){
+  if(act==='dedupe') return {type:'dedupe',c:$('#c1').value};
+  if(act==='filter') return {type:'filter',c:$('#c1').value,mode:$('#mode').value,v:$('#v1').value};
+  if(act==='keepcols') return {type:'keepcols',ks:[...$('#multi').selectedOptions].map(o=>o.value)};
+  if(act==='splitcol') return {type:'splitcol',c:$('#c1').value,sep:$('#v1').value,prefix:$('#v2').value||'\u62c6\u5206\u5217'};
+  if(act==='mergecols') return {type:'mergecols',ks:[...$('#multi').selectedOptions].map(o=>o.value),sep:$('#v1').value,name:$('#v2').value||'\u5408\u5e76\u7ed3\u679c'};
+  if(act==='replace') return {type:'replace',c:$('#c1').value,find:$('#v1').value,to:$('#v2').value};
+  return null;
+}
+
+function largeOpDetail(op){
+  if(op.type==='dedupe') return `\u6309\u300c${op.c}\u300d\u53bb\u91cd`;
+  if(op.type==='filter') return `\u7b5b\u9009\u300c${op.c}\u300d`;
+  if(op.type==='keepcols') return `\u4fdd\u7559 ${op.ks.length} \u4e2a\u5b57\u6bb5`;
+  if(op.type==='splitcol') return `\u62c6\u5206\u300c${op.c}\u300d`;
+  if(op.type==='mergecols') return `\u5408\u5e76 ${op.ks.length} \u4e2a\u5b57\u6bb5`;
+  if(op.type==='replace') return `\u66ff\u6362\u300c${op.c}\u300d\u4e2d\u7684\u5185\u5bb9`;
+  return '';
+}
+
+function makeLargeOpStates(ops){
+  return ops.map(op=>op.type==='dedupe'?{seen:new Set()}:{});
+}
+
+function applyLargeOpsToRow(input,ops,states){
+  let r=input;
+  for(let i=0;i<ops.length;i++){
+    const op=ops[i], st=states[i];
+    if(op.type==='dedupe'){
+      const k=String(r[op.c]??'');
+      if(st.seen.has(k)) return null;
+      st.seen.add(k);
+    }else if(op.type==='filter'){
+      const x=String(r[op.c]??''),v=op.v;
+      let ok=false;
+      if(op.mode==='contains') ok=x.includes(v);
+      if(op.mode==='equals') ok=x===v;
+      if(op.mode==='notempty') ok=x.trim()!=='';
+      if(op.mode==='empty') ok=x.trim()==='';
+      if(op.mode==='gt') ok=Number(x)>Number(v);
+      if(op.mode==='lt') ok=Number(x)<Number(v);
+      if(!ok) return null;
+    }else if(op.type==='keepcols'){
+      const nr={}; op.ks.forEach(k=>nr[k]=r[k]??''); r=nr;
+    }else if(op.type==='splitcol'){
+      const parts=String(r[op.c]??'').split(op.sep),nr={...r};
+      parts.forEach((v,j)=>nr[`${op.prefix}${j+1}`]=v); r=nr;
+    }else if(op.type==='mergecols'){
+      r={...r,[op.name]:op.ks.map(k=>r[k]??'').join(op.sep)};
+    }else if(op.type==='replace'){
+      r={...r,[op.c]:String(r[op.c]??'').split(op.find).join(op.to)};
+    }
+  }
+  return r;
+}
+
+function streamLargeCsvRows(file,encoding,ops,{onRow,onHeader,onProgress}={}){
+  return new Promise((resolve,reject)=>{
+    if(typeof Papa==='undefined'){
+      reject(new Error('Papa Parse \u52a0\u8f7d\u5931\u8d25\uff0c\u5927 CSV \u6d41\u5f0f\u6a21\u5f0f\u65e0\u6cd5\u542f\u52a8'));
+      return;
+    }
+    const states=makeLargeOpStates(ops), sourceHeaders=[];
+    let headerSent=false, lastProgress=-1, failed=false;
+    Papa.parse(file,{
+      header:true,
+      encoding,
+      skipEmptyLines:'greedy',
+      chunkSize:2*1024*1024,
+      worker:false,
+      chunk:(results,parser)=>{
+        if(failed) return;
+        try{
+          if(!headerSent){
+            const hs=(results.meta&&results.meta.fields)||Object.keys(results.data[0]||{});
+            sourceHeaders.push(...hs);
+            headerSent=true;
+            onHeader&&onHeader(sourceHeaders);
+          }
+          for(const raw of results.data){
+            const row=applyLargeOpsToRow(raw,ops,states);
+            if(row!==null) onRow&&onRow(row);
+          }
+          const cursor=Number(results.meta&&results.meta.cursor)||0;
+          if(file.size>0 && onProgress){
+            const pct=Math.min(99,Math.max(0,Math.floor(cursor/file.size*100)));
+            if(pct!==lastProgress){lastProgress=pct;onProgress(pct)}
+          }
+        }catch(err){
+          failed=true;
+          try{parser.abort()}catch(e){}
+          reject(err);
+        }
+      },
+      complete:()=>{if(!failed){onProgress&&onProgress(100);resolve({sourceHeaders})}},
+      error:err=>{if(!failed){failed=true;reject(err instanceof Error?err:new Error(String(err)))}}
+    });
+  });
+}
+
+async function scanLargeCsv(file,encoding,ops){
+  let rowCount=0, preview=[],sourceHeaders=[],outHeaders=[],headerSet=new Set();
+  await streamLargeCsvRows(file,encoding,ops,{
+    onHeader:hs=>{sourceHeaders=[...hs]},
+    onRow:r=>{
+      rowCount++;
+      if(preview.length<150) preview.push(r);
+      for(const k of Object.keys(r)) if(!headerSet.has(k)){headerSet.add(k);outHeaders.push(k)}
+    },
+    onProgress:p=>{
+      $('#title').textContent=`\u6b63\u5728\u6d41\u5f0f\u8bfb\u53d6\u5927 CSV\u2026 ${p}%`;
+      $('#subtitle').textContent=`${file.name} \u00b7 ${(file.size/1024/1024).toFixed(2)} MB \u00b7 \u4e0d\u4f1a\u4e00\u6b21\u6027\u8f7d\u5165\u5185\u5b58`;
+    }
+  });
+  if(!outHeaders.length){
+    outHeaders=[...sourceHeaders];
+    for(const op of ops){
+      if(op.type==='keepcols') outHeaders=[...op.ks];
+      if(op.type==='mergecols'&&!outHeaders.includes(op.name)) outHeaders.push(op.name);
+    }
+  }
+  return {rowCount,preview,sourceHeaders,outputHeaders:outHeaders};
+}
+
+async function loadLargeCsv(file,forcedEncoding='auto'){
+  const encoding=await resolveCsvEncoding(file,forcedEncoding);
+  largeCsvMode=true;
+  largeCsvState={file,encoding,rowCount:0,sourceHeaders:[],outputHeaders:[],preview:[],ops:[]};
+  original=[];current=[];headers=[];history=[];wb=null;
+  const result=await scanLargeCsv(file,encoding,[]);
+  largeCsvState={...largeCsvState,...result};
+  current=result.preview;
+  headers=result.outputHeaders;
+  baseName=file.name.replace(/\.[^.]+$/,'');
+  $('#filebar').classList.add('show');
+  $('#fname').textContent=file.name;
+  $('#fmeta').textContent=`${(file.size/1024/1024).toFixed(2)} MB \u00b7 ${result.rowCount.toLocaleString()} \u884c \u00b7 \u5927\u6587\u4ef6\u6a21\u5f0f`;
+  renderFile();renderPipeline();
+  $('#footer').style.display='flex';
+  $('#title').textContent='\u6587\u4ef6\u9884\u89c8';
+  $('#subtitle').textContent=`\u5df2\u7528\u6d41\u5f0f\u6a21\u5f0f\u8bfb\u53d6 ${result.rowCount.toLocaleString()} \u884c\uff0c\u9875\u9762\u53ea\u4fdd\u7559\u524d 150 \u884c\u9884\u89c8\u3002`;
+}
+
+async function refreshLargeCsv(){
+  const r=await scanLargeCsv(largeCsvState.file,largeCsvState.encoding,largeCsvState.ops);
+  largeCsvState={...largeCsvState,...r};
+  current=r.preview;headers=r.outputHeaders;
+  renderFile();renderPipeline();
+}
+
+async function applyLargeCsvAction(act){
+  if(act==='group'){
+    await runLargeCsvGroup();
+    return;
+  }
+  if(act==='quality'){
+    await runLargeCsvQuality();
+    return;
+  }
+  const op=largeOpFromUI(act);
+  if(!op) return;
+  if(op.type==='keepcols' && !op.ks.length){alert('\u8bf7\u81f3\u5c11\u4fdd\u7559 1 \u4e2a\u5b57\u6bb5');return}
+  if(op.type==='mergecols' && !op.ks.length){alert('\u8bf7\u81f3\u5c11\u9009\u62e9 1 \u4e2a\u8981\u5408\u5e76\u7684\u5b57\u6bb5');return}
+  const btn=$('#apply'),detail=largeOpDetail(op);
+  btn.disabled=true;btn.textContent='\u5904\u7406\u4e2d\u2026';
+  largeCsvState.ops.push(op);
+  try{
+    await refreshLargeCsv();
+    history.push({large:true,label:ACTIONS[act].name,detail});
+    $('#config').classList.remove('show');
+    renderPipeline();
+    $('#title').textContent='\u5904\u7406\u5b8c\u6210';
+    $('#subtitle').textContent=`${detail} \u00b7 \u5168\u91cf ${largeCsvState.rowCount.toLocaleString()} \u884c`;
+  }catch(err){
+    largeCsvState.ops.pop();
+    console.error(err);
+    alert(`\u5927\u6587\u4ef6\u5904\u7406\u5931\u8d25\uff1a${err?.message||err}`);
+  }finally{
+    btn.disabled=false;btn.textContent='\u5e94\u7528\u8fd9\u4e00\u6b65';
+  }
+}
+
+async function runLargeCsvGroup(){
+  const g=$('#c1').value,m=$('#mode').value,c=$('#c2').value;
+  const groups=new Map();
+  const distinct=m==='distinct'?new Map():null;
+  let distinctTotal=0;
+  $('#apply').disabled=true;$('#apply').textContent='\u7edf\u8ba1\u4e2d\u2026';
+  try{
+    await streamLargeCsvRows(largeCsvState.file,largeCsvState.encoding,largeCsvState.ops,{
+      onRow:r=>{
+        const k=String(r[g]??'');
+        if(!groups.has(k)){
+          if(groups.size>=200000) throw new Error('\u5206\u7ec4\u6570\u8d85\u8fc7 20 \u4e07\uff0c\u5df2\u505c\u6b62\uff0c\u907f\u514d\u6d4f\u89c8\u5668\u5185\u5b58\u8fc7\u9ad8');
+          groups.set(k,{count:0,sum:0});
+          if(distinct) distinct.set(k,new Set());
+        }
+        const z=groups.get(k);z.count++;z.sum+=Number(r[c])||0;
+        if(distinct){
+          const set=distinct.get(k),v=String(r[c]??'');
+          if(!set.has(v)){set.add(v);distinctTotal++;if(distinctTotal>1000000) throw new Error('\u53bb\u91cd\u7edf\u8ba1\u7684\u552f\u4e00\u503c\u8d85\u8fc7 100 \u4e07\uff0c\u5df2\u505c\u6b62\uff0c\u907f\u514d\u5185\u5b58\u8fc7\u9ad8')}
+        }
+      },
+      onProgress:p=>{$('#title').textContent=`\u6b63\u5728\u5206\u7ec4\u7edf\u8ba1\u2026 ${p}%`}
+    });
+    const rows=[];
+    for(const [k,z] of groups){
+      let v=z.count;
+      if(m==='distinct') v=distinct.get(k).size;
+      if(m==='sum') v=z.sum;
+      if(m==='avg') v=z.count?z.sum/z.count:0;
+      rows.push({[g]:k,'\u7edf\u8ba1\u503c':v});
+    }
+    rows.sort((a,b)=>Number(b['\u7edf\u8ba1\u503c'])-Number(a['\u7edf\u8ba1\u503c']));
+    current=rows;headers=rows.length?Object.keys(rows[0]):[g,'\u7edf\u8ba1\u503c'];
+    $('#config').classList.remove('show');
+    renderFile();
+    $('#mrows').textContent=rows.length.toLocaleString()+' \u7ec4';
+    $('#mstate').textContent='\u5206\u7ec4\u7edf\u8ba1';
+    $('#hint').textContent=`\u57fa\u4e8e\u5927 CSV \u5168\u91cf ${largeCsvState.rowCount.toLocaleString()} \u884c\u7edf\u8ba1`;
+    $('#title').textContent='\u5206\u7ec4\u7edf\u8ba1\u5b8c\u6210';
+    $('#subtitle').textContent=`\u751f\u6210 ${rows.length.toLocaleString()} \u4e2a\u5206\u7ec4\u3002\u8be5\u7ed3\u679c\u4ec5\u7528\u4e8e\u5c55\u793a\uff0c\u4e0d\u6539\u5199\u539f\u59cb\u5927\u6587\u4ef6\u5904\u7406\u94fe\u3002`;
+  }catch(err){console.error(err);alert(`\u5206\u7ec4\u7edf\u8ba1\u5931\u8d25\uff1a${err?.message||err}`)}
+  finally{$('#apply').disabled=false;$('#apply').textContent='\u5e94\u7528\u8fd9\u4e00\u6b65'}
+}
+
+async function runLargeCsvQuality(){
+  const key=$('#c1').value;
+  let rows=0,blanks=0,dupKeys=0;
+  const keySeen=new Set();
+  $('#apply').disabled=true;$('#apply').textContent='\u68c0\u67e5\u4e2d\u2026';
+  try{
+    await streamLargeCsvRows(largeCsvState.file,largeCsvState.encoding,largeCsvState.ops,{
+      onRow:r=>{
+        rows++;
+        for(const h of Object.keys(r)) if(String(r[h]??'').trim()==='') blanks++;
+        const k=String(r[key]??'');
+        if(keySeen.has(k)) dupKeys++; else keySeen.add(k);
+      },
+      onProgress:p=>{$('#title').textContent=`\u6b63\u5728\u6570\u636e\u68c0\u67e5\u2026 ${p}%`}
+    });
+    current=[
+      {'\u68c0\u67e5\u9879':'\u603b\u884c\u6570','\u7ed3\u679c':rows},
+      {'\u68c0\u67e5\u9879':'\u603b\u5217\u6570','\u7ed3\u679c':largeCsvState.outputHeaders.length},
+      {'\u68c0\u67e5\u9879':'\u7a7a\u503c\u5355\u5143\u683c','\u7ed3\u679c':blanks},
+      {'\u68c0\u67e5\u9879':`\u91cd\u590d\u4e3b\u952e\u8bb0\u5f55\uff08${key}\uff09`,'\u7ed3\u679c':dupKeys},
+      {'\u68c0\u67e5\u9879':'\u91cd\u590d\u6574\u884c','\u7ed3\u679c':'\u5927\u6587\u4ef6\u6a21\u5f0f\u672a\u8ba1\u7b97\uff08\u907f\u514d\u4fdd\u7559\u5168\u91cf\u884c\u7b7e\u540d\u5bfc\u81f4\u5185\u5b58\u8fc7\u9ad8\uff09'}
+    ];
+    headers=Object.keys(current[0]);
+    $('#config').classList.remove('show');renderFile();
+    $('#mrows').textContent=rows.toLocaleString()+' \u884c';$('#mstate').textContent='\u6570\u636e\u68c0\u67e5';
+    $('#hint').textContent='\u5927 CSV \u5168\u91cf\u626b\u63cf\u7ed3\u679c';
+    $('#title').textContent='\u6570\u636e\u68c0\u67e5\u5b8c\u6210';
+    $('#subtitle').textContent='\u5df2\u626b\u63cf\u6574\u4e2a\u5927 CSV\uff0c\u6ca1\u6709\u628a\u5168\u91cf\u6570\u636e\u7559\u5728\u5185\u5b58\u91cc\u3002';
+  }catch(err){console.error(err);alert(`\u6570\u636e\u68c0\u67e5\u5931\u8d25\uff1a${err?.message||err}`)}
+  finally{$('#apply').disabled=false;$('#apply').textContent='\u5e94\u7528\u8fd9\u4e00\u6b65'}
+}
+
+async function exportLargeCsv(){
+  if(!largeCsvMode||!largeCsvState.file) return;
+  if(!('showSaveFilePicker' in window)){
+    alert('\u8fd9\u662f\u5927 CSV \u6d41\u5f0f\u5bfc\u51fa\u3002\u8bf7\u7528\u6700\u65b0\u7248 Chrome / Edge\uff0c\u4ee5\u4fbf\u76f4\u63a5\u5199\u5165\u78c1\u76d8\uff0c\u907f\u514d\u6d4f\u89c8\u5668\u5185\u5b58\u6ea2\u51fa\u3002');
+    return;
+  }
+  let handle;
+  try{
+    handle=await window.showSaveFilePicker({
+      suggestedName:`${baseName||'\u7c98\u4e00\u4e0b'}_\u5904\u7406\u7ed3\u679c.csv`,
+      types:[{description:'CSV',accept:{'text/csv':['.csv']}}]
+    });
+  }catch(err){if(err&&err.name==='AbortError')return;throw err}
+  const writable=await handle.createWritable();
+  const encoder=new TextEncoder();
+  const cols=largeCsvState.outputHeaders;
+  const states=makeLargeOpStates(largeCsvState.ops);
+  let failed=false,lastProgress=-1;
+  try{
+    await writable.write(new Uint8Array([0xEF,0xBB,0xBF]));
+    const header=Papa.unparse({fields:cols,data:[]},{newline:'\r\n'});
+    await writable.write(encoder.encode(header+'\r\n'));
+    await new Promise((resolve,reject)=>{
+      Papa.parse(largeCsvState.file,{
+        header:true,encoding:largeCsvState.encoding,skipEmptyLines:'greedy',chunkSize:2*1024*1024,worker:false,
+        chunk:async(results,parser)=>{
+          if(failed)return;
+          parser.pause();
+          try{
+            const out=[];
+            for(const raw of results.data){const r=applyLargeOpsToRow(raw,largeCsvState.ops,states);if(r!==null)out.push(r)}
+            if(out.length){
+              const txt=Papa.unparse(out,{header:false,columns:cols,newline:'\r\n'});
+              await writable.write(encoder.encode(txt+'\r\n'));
+            }
+            const cursor=Number(results.meta&&results.meta.cursor)||0;
+            const pct=Math.min(99,Math.max(0,Math.floor(cursor/largeCsvState.file.size*100)));
+            if(pct!==lastProgress){lastProgress=pct;$('#title').textContent=`\u6b63\u5728\u5bfc\u51fa\u5927 CSV\u2026 ${pct}%`}
+            parser.resume();
+          }catch(err){failed=true;try{parser.abort()}catch(e){};reject(err)}
+        },
+        complete:()=>{if(!failed)resolve()},
+        error:err=>{failed=true;reject(err)}
+      });
+    });
+    await writable.close();
+    $('#title').textContent='\u5bfc\u51fa\u5b8c\u6210';
+    $('#subtitle').textContent=`\u5df2\u6d41\u5f0f\u5bfc\u51fa ${largeCsvState.rowCount.toLocaleString()} \u884c\uff0c\u672a\u5c06\u5168\u91cf\u7ed3\u679c\u5806\u5230\u6d4f\u89c8\u5668\u5185\u5b58\u3002`;
+  }catch(err){
+    try{await writable.abort()}catch(e){}
+    console.error(err);
+    alert(`\u5927 CSV \u5bfc\u51fa\u5931\u8d25\uff1a${err?.message||err}`);
+  }
+}
+
 async function loadFile(file){
  try{
   // 释放上一个文件的大对象，避免连续上传时内存叠加。
@@ -437,6 +766,11 @@ async function loadFile(file){
   const isCsv=/\.csv$/i.test(file.name);
   const encSel=document.getElementById('csvEncoding');
   document.getElementById('encodingWrap').style.display=isCsv?'flex':'none';
+  if(isCsv && file.size>=LARGE_CSV_THRESHOLD){
+    await loadLargeCsv(file,encSel?.value||'auto');
+    return;
+  }
+  resetLargeCsvState();
   $('#title').textContent='正在读取文件…';
   $('#subtitle').textContent=`${file.name} · ${(file.size/1024/1024).toFixed(2)} MB`;
   wb=await readWB(file,isCsv?(encSel?.value||'auto'):'auto');baseName=file.name.replace(/\.[^.]+$/,'');
@@ -459,10 +793,16 @@ async function loadFile(file){
  }
 }
 function renderFile(){
- $('#mrows').textContent=current.length.toLocaleString()+' 行';$('#mcols').textContent=(current.length?Object.keys(current[0]).length:0)+' 列';$('#mstate').textContent=history.length?`已处理 ${history.length} 步`:'原始数据';
- $('#hint').textContent=current.length>150?`页面预览前 150 行 · 导出包含全部 ${current.length.toLocaleString()} 行`:`共 ${current.length.toLocaleString()} 行`;
- if(!current.length){$('#tableArea').innerHTML='<div class="empty"><div><div class="big">∅</div><b>没有符合条件的数据</b></div></div>';return}
- const hs=Object.keys(current[0]),show=current.slice(0,150);
+ const totalRows=largeCsvMode?largeCsvState.rowCount:current.length;
+ const hs=headers.length?headers:Object.keys(current[0]||{});
+ $('#mrows').textContent=totalRows.toLocaleString()+' \u884c';
+ $('#mcols').textContent=hs.length+' \u5217';
+ $('#mstate').textContent=largeCsvMode?'\u5927\u6587\u4ef6\u6a21\u5f0f':(history.length?`\u5df2\u5904\u7406 ${history.length} \u6b65`:'\u539f\u59cb\u6570\u636e');
+ $('#hint').textContent=largeCsvMode
+   ?`\u5927 CSV \u6d41\u5f0f\u6a21\u5f0f \u00b7 \u9875\u9762\u4ec5\u9884\u89c8\u524d ${Math.min(150,current.length)} \u884c \u00b7 \u5168\u91cf ${totalRows.toLocaleString()} \u884c`
+   :(current.length>150?`\u9875\u9762\u9884\u89c8\u524d 150 \u884c \u00b7 \u5bfc\u51fa\u5305\u542b\u5168\u90e8 ${current.length.toLocaleString()} \u884c`:`\u5171 ${current.length.toLocaleString()} \u884c`);
+ if(!current.length){$('#tableArea').innerHTML='<div class="empty"><div><div class="big">\u2205</div><b>\u6ca1\u6709\u7b26\u5408\u6761\u4ef6\u7684\u6570\u636e</b></div></div>';return}
+ const show=current.slice(0,150);
  $('#tableArea').innerHTML=`<div class="tablewrap"><table><thead><tr>${hs.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${show.map(r=>`<tr>${hs.map(h=>`<td title="${esc(r[h]??'')}">${esc(r[h]??'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
 $$('[data-act]').forEach(b=>b.onclick=()=>openAction(b.dataset.act));
@@ -519,6 +859,10 @@ $('#apply').onclick=async()=>{
  if(!activeAction)return;const act=activeAction;
  if(act==='mergefiles'){
    await mergeMultipleFiles();
+   return;
+ }
+ if(largeCsvMode){
+   await applyLargeCsvAction(act);
    return;
  }
  // 当前所有处理步骤都会重新赋值 current，不会原地修改旧数组；撤销时直接保留上一版引用即可。
@@ -1144,11 +1488,29 @@ async function mergeMultipleFiles(){
   activeAction=null;
 }
 
-function renderPipeline(){const box=$('#pipeline');if(!history.length){box.innerHTML='<div class="empty-pipe">你做的每一步都会记录在这里。<br>可以随时撤销上一步。</div>';$('#undo').disabled=true;return}box.innerHTML=history.map((h,i)=>`<div class="step ${i===history.length-1?'current':''}"><b>${i+1}. ${esc(h.label)}</b><span>${esc(h.detail)}</span></div>`).join('');$('#undo').disabled=false}
-$('#undo').onclick=()=>{if(!history.length)return;const last=history.pop();current=last.data;headers=current.length?Object.keys(current[0]):[];renderFile();renderPipeline();$('#title').textContent='已撤销上一步';$('#subtitle').textContent='可以继续处理。'};
-$('#reset').onclick=()=>{current=original.slice();headers=current.length?Object.keys(current[0]):[];history=[];renderFile();renderPipeline();$('#title').textContent='已恢复原始数据';$('#subtitle').textContent='所有处理步骤已清空。'};
-$('#xlsx').onclick=()=>downloadXLSX(current,(baseName||'粘一下')+'_处理结果.xlsx');
-$('#csv').onclick=()=>downloadCSV(current,(baseName||'粘一下')+'_处理结果.csv');
+function renderPipeline(){const box=$('#pipeline');if(!history.length){box.innerHTML='<div class="empty-pipe">\u4f60\u505a\u7684\u6bcf\u4e00\u6b65\u90fd\u4f1a\u8bb0\u5f55\u5728\u8fd9\u91cc\u3002<br>\u53ef\u4ee5\u968f\u65f6\u64a4\u9500\u4e0a\u4e00\u6b65\u3002</div>';$('#undo').disabled=true;return}box.innerHTML=history.map((h,i)=>`<div class="step ${i===history.length-1?'current':''}"><b>${i+1}. ${esc(h.label)}</b><span>${esc(h.detail)}</span></div>`).join('');$('#undo').disabled=false}
+$('#undo').onclick=async()=>{
+ if(!history.length)return;
+ if(largeCsvMode){
+   history.pop();largeCsvState.ops.pop();
+   try{await refreshLargeCsv();$('#title').textContent='\u5df2\u64a4\u9500\u4e0a\u4e00\u6b65';$('#subtitle').textContent='\u5df2\u91cd\u65b0\u6d41\u5f0f\u626b\u63cf\u539f\u6587\u4ef6\u3002'}catch(err){console.error(err);alert(`\u64a4\u9500\u5931\u8d25\uff1a${err?.message||err}`)}
+   return;
+ }
+ const last=history.pop();current=last.data;headers=current.length?Object.keys(current[0]):[];renderFile();renderPipeline();$('#title').textContent='\u5df2\u64a4\u9500\u4e0a\u4e00\u6b65';$('#subtitle').textContent='\u53ef\u4ee5\u7ee7\u7eed\u5904\u7406\u3002'
+};
+$('#reset').onclick=async()=>{
+ if(largeCsvMode){
+   largeCsvState.ops=[];history=[];
+   try{await refreshLargeCsv();$('#title').textContent='\u5df2\u6062\u590d\u539f\u59cb\u6570\u636e';$('#subtitle').textContent='\u6240\u6709\u5927\u6587\u4ef6\u5904\u7406\u6b65\u9aa4\u5df2\u6e05\u7a7a\u3002'}catch(err){console.error(err);alert(`\u6062\u590d\u5931\u8d25\uff1a${err?.message||err}`)}
+   return;
+ }
+ current=original.slice();headers=current.length?Object.keys(current[0]):[];history=[];renderFile();renderPipeline();$('#title').textContent='\u5df2\u6062\u590d\u539f\u59cb\u6570\u636e';$('#subtitle').textContent='\u6240\u6709\u5904\u7406\u6b65\u9aa4\u5df2\u6e05\u7a7a\u3002'
+};
+$('#xlsx').onclick=()=>{
+ if(largeCsvMode){alert('\u5f53\u524d\u662f\u5927 CSV \u6d41\u5f0f\u6a21\u5f0f\u3002\u4e3a\u907f\u514d 360MB \u7ea7\u522b\u6570\u636e\u751f\u6210 XLSX \u65f6\u518d\u6b21\u7206\u5185\u5b58\uff0c\u8bf7\u4f7f\u7528\u300c\u4e0b\u8f7d CSV\u300d\u6d41\u5f0f\u5bfc\u51fa\u3002');return}
+ downloadXLSX(current,(baseName||'\u7c98\u4e00\u4e0b')+'_\u5904\u7406\u7ed3\u679c.xlsx')
+};
+$('#csv').onclick=()=>{if(largeCsvMode){exportLargeCsv();return}downloadCSV(current,(baseName||'\u7c98\u4e00\u4e0b')+'_\u5904\u7406\u7ed3\u679c.csv')};
 function downloadXLSX(rows,name){if(!rows.length)return;const ws=XLSX.utils.json_to_sheet(rows),w=XLSX.utils.book_new();XLSX.utils.book_append_sheet(w,ws,'处理结果');XLSX.writeFile(w,name)}
 function downloadCSV(rows,name){if(!rows.length)return;const ws=XLSX.utils.json_to_sheet(rows),csv='\ufeff'+XLSX.utils.sheet_to_csv(ws),blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u)}
 const csvEncodingEl=document.getElementById('csvEncoding');
